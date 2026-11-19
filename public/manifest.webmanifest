@@ -1,16 +1,21 @@
 {
+  "id": "/",
   "name": "Toko Santri",
   "short_name": "Toko Santri",
-  "description": "Aplikasi sederhana untuk mengelola toko Gading dan Palur.",
+  "description": "Catatan toko Gading dan Palur: nota supplier, buku uang, harga barang, dan stok (data simulasi).",
   "lang": "id",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f8faf7",
-  "theme_color": "#27604d",
+  "background_color": "#fff7fb",
+  "theme_color": "#e94c90",
+  "categories": ["business", "finance", "productivity"],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

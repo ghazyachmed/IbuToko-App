@@ -1,30 +1,20 @@
-'use client'
-
-import Image from 'next/image'
-import NextLink from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import {
-  createContext,
-  type FormEvent,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useState,
-  useTransition,
-} from 'react'
-import { logoutAction, recordPaymentAction } from '@/app/(frontend)/actions'
+import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import kittyUrl from '@/assets/hello-kitty.png'
+import { composeData, entryBasePrice, type LocalRecords, loadLocalRecords, saveLocalRecords } from '@/lib/store'
+import { type Answer, answerQuestion, type PendingAction, priceAnalysis, sellAnalysis } from '@/lib/tanya-data'
 import {
   type AccountView,
   type Branch,
-  branchCode,
+  BRANCHES,
   type IncomeView,
   type InvoiceView,
   type PaymentView,
   type ProductView,
   rupiah,
   shortDate,
-  type TokoData,
+  todayISO,
 } from '@/lib/toko-types'
+import { Link, Navigate, useNavigate, usePathname } from '@/router'
 
 type PaymentMethod = 'bca' | 'bri' | 'cash'
 type Invoice = InvoiceView
@@ -33,6 +23,14 @@ type Payment = PaymentView
 type InstallEvent = Event & {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+type NewPayment = {
+  invoiceId: string
+  date: string
+  amount: number
+  method: PaymentMethod
+  proofName: string
+  acosysRecorded: boolean
 }
 type StoreContext = {
   branch: Branch | null
@@ -43,36 +41,43 @@ type StoreContext = {
   balances: AccountView[]
   products: ProductView[]
   allowedBranches: Branch[]
+  recordPayment: (payment: NewPayment) => { ok: boolean; error?: string }
+  confirmAction: (action: PendingAction, acosysRecorded: boolean) => string[]
 }
 
 const TokoContext = createContext<StoreContext | null>(null)
+const BRANCH_KEY = 'toko-santri-branch'
+const WELCOMED_KEY = 'toko-santri-welcomed'
+const PICKED_IN_APP_KEY = 'toko-santri-picked-in-app'
 
-function Link({
-  to,
-  className,
-  children,
-}: {
-  to: string
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <NextLink href={to} className={className}>
-      {children}
-    </NextLink>
-  )
+const readStorage = (key: string) => {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+const writeStorage = (key: string, value: string | null) => {
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch {
+    /* penyimpanan perangkat tidak tersedia */
+  }
 }
 
-function Navigate({ to }: { to: string; replace?: boolean }) {
-  const router = useRouter()
-  useEffect(() => router.replace(to), [router, to])
-  return null
-}
+const isStandalone = () =>
+  typeof window !== 'undefined' &&
+  (window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true)
 
-const useNavigate = () => {
-  const router = useRouter()
-  return (to: string) => router.push(to)
-}
+/** Event pasang aplikasi ditangkap sejak awal, karena layar Pasang muncul setelah Pilih Toko. */
+let deferredInstall: InstallEvent | null = null
+if (typeof window !== 'undefined')
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault()
+    deferredInstall = event as InstallEvent
+  })
 
 const iconPaths = {
   ledger: (
@@ -233,40 +238,188 @@ function Brand() {
   )
 }
 
+function StoreIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 46" aria-hidden="true">
+      <path className="store-awning" d="M8 5h32l5 11H3Z" />
+      <path className="store-stripe" d="M16 5h8v11h-10ZM32 5h-8v11h10Z" />
+      <path
+        className="store-line"
+        d="M8 5h32l5 11H3ZM3 16c0 3 2.4 5.5 5.3 5.5S13.7 19 13.7 16c0 3 2.4 5.5 5.2 5.5S24 19 24 16c0 3 2.3 5.5 5.2 5.5s5.1-2.5 5.1-5.5c0 3 2.4 5.5 5.3 5.5S45 19 45 16M16 5l-2.3 11M24 5v11M32 5l2.3 11M7.5 22v19h33V22M20 41V31.5h8V41"
+      />
+    </svg>
+  )
+}
+
+function Heart({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 22" aria-hidden="true">
+      <path d="M12 20.5S2 14.3 2 7.6A5.1 5.1 0 0 1 12 5.4a5.1 5.1 0 0 1 10 2.2c0 6.7-10 12.9-10 12.9Z" />
+    </svg>
+  )
+}
+
+function Rays({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 30 30" aria-hidden="true">
+      <path d="M15 10V3M21 13l5-4M22 20h6" />
+    </svg>
+  )
+}
+
+function HomeHero() {
+  return (
+    <header className="home-hero">
+      <Rays className="hero-rays" />
+      <StoreIcon className="hero-store" />
+      <b>Toko Santri</b>
+      <Heart className="hero-heart" />
+      <svg className="hero-wave" viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0 14C55 2 105 2 160 12s110 14 160 4 60-10 80-8V28H0Z" />
+      </svg>
+    </header>
+  )
+}
+
+function GreetingScene() {
+  return (
+    <svg className="greeting-scene" viewBox="0 0 400 210" preserveAspectRatio="none" aria-hidden="true">
+      <path className="scene-hill-back" d="M0 150c40-28 85-30 125-8 30-22 70-26 105-6 45-34 110-36 170-4v78H0Z" />
+      <path className="scene-hill" d="M0 178c60-20 120-18 190-2 70-16 140-18 210-4v38H0Z" />
+      <g className="scene-flower" transform="translate(328 150)">
+        <circle cx="0" cy="-7" r="6" />
+        <circle cx="7" cy="-1" r="6" />
+        <circle cx="4" cy="7" r="6" />
+        <circle cx="-5" cy="7" r="6" />
+        <circle cx="-7" cy="-1" r="6" />
+        <circle className="scene-flower-mid" r="4" />
+      </g>
+      <g className="scene-flower" transform="translate(362 166) scale(.8)">
+        <circle cx="0" cy="-7" r="6" />
+        <circle cx="7" cy="-1" r="6" />
+        <circle cx="4" cy="7" r="6" />
+        <circle cx="-5" cy="7" r="6" />
+        <circle cx="-7" cy="-1" r="6" />
+        <circle className="scene-flower-mid" r="4" />
+      </g>
+      <path className="scene-leaf" d="M352 150c6-9 14-11 20-9-3 8-11 12-20 9Z" />
+    </svg>
+  )
+}
+
 function Kitten() {
   return (
-    <Image
+    <img
       className="kitten"
-      src="/assets/hello-kitty.png"
+      src={kittyUrl}
       width="512"
       height="512"
       alt="Hello Kitty melambaikan tangan"
+      decoding="async"
     />
   )
 }
 
-function StoreRoot({
-  data,
-  allowedBranches,
-  children,
-}: {
-  data: TokoData
-  allowedBranches: Branch[]
-  children: ReactNode
-}) {
-  const [branch, updateBranch] = useState<Branch | null>(allowedBranches[0] ?? null)
+function StoreRoot({ children }: { children: ReactNode }) {
+  const allowedBranches = BRANCHES
+  const [branch, updateBranch] = useState<Branch | null>(() => {
+    const stored = readStorage(BRANCH_KEY) as Branch | null
+    return stored && BRANCHES.includes(stored) ? stored : null
+  })
+  const [local, setLocal] = useState<LocalRecords>(() => loadLocalRecords())
+  const data = useMemo(() => composeData(local), [local])
 
   useEffect(() => {
-    const stored = localStorage.getItem('toko-santri-branch') as Branch | null
-    updateBranch(stored && allowedBranches.includes(stored) ? stored : (allowedBranches[0] ?? null))
-    if ('serviceWorker' in navigator)
+    if ('serviceWorker' in navigator && import.meta.env.PROD)
       navigator.serviceWorker.register('/sw.js').catch(() => undefined)
-  }, [allowedBranches])
+  }, [])
 
   function setBranch(value: Branch | null) {
-    if (value) localStorage.setItem('toko-santri-branch', value)
-    else localStorage.removeItem('toko-santri-branch')
+    writeStorage(BRANCH_KEY, value)
     updateBranch(value)
+  }
+
+  function commit(next: LocalRecords) {
+    saveLocalRecords(next)
+    setLocal(next)
+    return composeData(next)
+  }
+
+  function recordPayment(input: NewPayment): { ok: boolean; error?: string } {
+    const invoice = data.invoices.find((item) => item.id === input.invoiceId)
+    if (!invoice) return { ok: false, error: 'Nota tidak ditemukan.' }
+    if (!['bca', 'bri', 'cash'].includes(input.method))
+      return { ok: false, error: 'Metode pembayaran tidak valid.' }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date) || input.date > todayISO())
+      return { ok: false, error: 'Tanggal pembayaran tidak valid.' }
+    if (!Number.isFinite(input.amount) || input.amount <= 0)
+      return { ok: false, error: 'Jumlah harus lebih dari nol.' }
+    if (input.amount > invoice.remainingBalance) return { ok: false, error: 'Jumlah melebihi sisa nota.' }
+    if (!input.proofName) return { ok: false, error: 'Pilih bukti pembayaran.' }
+    const payment: PaymentView = {
+      id: `LOCAL-${invoice.number}-${Date.now()}`,
+      branch: invoice.branch,
+      invoiceId: invoice.id,
+      date: input.date,
+      amount: Math.round(input.amount),
+      method: input.method === 'bca' ? 'Transfer BCA' : input.method === 'bri' ? 'Transfer BRI' : 'Tunai',
+      proofName: `${input.proofName} (simulasi)`,
+      proofUrl: null,
+      acosysRecorded: input.acosysRecorded,
+      simulated: true,
+      local: true,
+    }
+    commit({ ...local, payments: [payment, ...local.payments] })
+    return { ok: true }
+  }
+
+  function confirmAction(action: PendingAction, acosysRecorded: boolean): string[] {
+    const product = data.products.find((item) => item.branch === action.branch && item.key === action.productKey)
+    if (!product) return ['Barang tidak ditemukan.']
+    if (action.kind === 'sell') {
+      if (product.latestCost && action.sellPrice < product.latestCost.basePrice)
+        return ['Tidak bisa disimpan: harga jual lebih murah dari harga beli.']
+      const next = commit({
+        ...local,
+        sells: [
+          {
+            id: `JUAL-${Date.now()}`,
+            branch: action.branch,
+            productKey: action.productKey,
+            date: action.date,
+            sellPrice: action.sellPrice,
+            previous: product.sellPrice,
+            acosysRecorded,
+          },
+          ...local.sells,
+        ],
+      })
+      const updated = next.products.find((item) => item.id === product.id)
+      return updated ? sellAnalysis(updated) : []
+    }
+    if (!(action.unitPrice > 0) || entryBasePrice(product, action.unit, action.unitPrice, action.shipping) <= 0)
+      return ['Harga tidak valid.']
+    const id = `INFO-${Date.now()}`
+    const next = commit({
+      ...local,
+      prices: [
+        {
+          id,
+          branch: action.branch,
+          productKey: action.productKey,
+          date: action.date,
+          supplier: action.supplier,
+          unit: action.unit,
+          unitPrice: action.unitPrice,
+          shipping: action.shipping,
+          acosysRecorded,
+          note: 'Info harga dari supplier/sales (dicatat di Tanya Data)',
+        },
+        ...local.prices,
+      ],
+    })
+    const updated = next.products.find((item) => item.id === product.id)
+    return updated ? priceAnalysis(updated, id) : []
   }
 
   return (
@@ -280,6 +433,8 @@ function StoreRoot({
         balances: data.accounts,
         products: data.products,
         allowedBranches,
+        recordPayment,
+        confirmAction,
       }}
     >
       {children}
@@ -293,19 +448,32 @@ const useStore = () => {
   return value
 }
 
-function Welcome() {
+/** Rute awal "/": pertama kali buka atau baru dipasang → Pilih Toko dulu. */
+function Start() {
   const { branch } = useStore()
+  const standalone = isStandalone()
+  if (!branch || (standalone && readStorage(PICKED_IN_APP_KEY) !== 'yes'))
+    return <Navigate to="/pilih-toko" replace />
+  if (!standalone && readStorage(WELCOMED_KEY) !== 'yes') return <Welcome />
+  return <Navigate to="/app" replace />
+}
+
+function Welcome() {
   const navigate = useNavigate()
-  const [installPrompt, setInstallPrompt] = useState<InstallEvent | null>(null)
+  const [installPrompt, setInstallPrompt] = useState<InstallEvent | null>(deferredInstall)
   const [showIOS, setShowIOS] = useState(false)
   const [message, setMessage] = useState('')
-  const [welcomed, setWelcomed] = useState(false)
+
+  const next = () => {
+    writeStorage(WELCOMED_KEY, 'yes')
+    navigate('/app', { replace: true })
+  }
 
   useEffect(() => {
-    setWelcomed(localStorage.getItem('toko-santri-welcomed') === 'yes')
     const handler = (event: Event) => {
       event.preventDefault()
-      setInstallPrompt(event as InstallEvent)
+      deferredInstall = event as InstallEvent
+      setInstallPrompt(deferredInstall)
     }
     const installed = () => next()
     window.addEventListener('beforeinstallprompt', handler)
@@ -314,29 +482,20 @@ function Welcome() {
       window.removeEventListener('beforeinstallprompt', handler)
       window.removeEventListener('appinstalled', installed)
     }
-  }, [])
+  })
 
-  const next = () => {
-    localStorage.setItem('toko-santri-welcomed', 'yes')
-    setWelcomed(true)
-    navigate(branch ? '/app' : '/login')
-  }
   async function install() {
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      next()
-      return
-    }
+    if (isStandalone()) return next()
     if (installPrompt) {
       await installPrompt.prompt()
       const result = await installPrompt.userChoice
+      deferredInstall = null
       setInstallPrompt(null)
       if (result.outcome === 'accepted') next()
     } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) setShowIOS(true)
-    else if (window.top !== window.self) setMessage('Instal langsung aktif di situs publik.')
-    else setMessage('Instal langsung belum tersedia di browser ini.')
+    else if (window.top !== window.self) setMessage('Pasang langsung aktif di situs publik.')
+    else setMessage('Pasang langsung belum bisa di browser ini.')
   }
-
-  if (welcomed) return <Navigate to={branch ? '/app' : '/login'} replace />
 
   return (
     <main className="welcome">
@@ -398,23 +557,21 @@ function BranchPicker() {
   const navigate = useNavigate()
   const choose = (branch: Branch) => {
     setBranch(branch)
-    navigate('/app')
+    const standalone = isStandalone()
+    if (standalone) writeStorage(PICKED_IN_APP_KEY, 'yes')
+    if (!standalone && readStorage(WELCOMED_KEY) !== 'yes') navigate('/', { replace: true })
+    else navigate('/app', { replace: true })
   }
   return (
-    <main className="page branch-page">
-      <div className="brand-lockup">
-        <Brand />
-        <b>Toko Santri</b>
-      </div>
+    <main className="page home branch-home">
+      <HomeHero />
       <section className="branch-content">
         <h1>Pilih Toko</h1>
         <div className="branch-options">
           {allowedBranches.map((item) => (
             <button className="branch-card" key={item} onClick={() => choose(item)}>
-              <span>{item[0]}</span>
-              <div>
-                <b>{item}</b>
-              </div>
+              <StoreIcon className="branch-store" />
+              <b>{item}</b>
               <em>›</em>
             </button>
           ))}
@@ -427,23 +584,13 @@ function BranchPicker() {
 function Home() {
   const { branch, setBranch, invoices } = useStore()
   const navigate = useNavigate()
-  const unpaid = invoices.filter(
-    (invoice) => invoice.branch === branch && invoice.status !== 'Lunas',
-  ).length
-  const cards = [
-    ['Buku Besar', 'ledger', '/app/buku-besar', 'rose'],
-    ['Buku Uang', 'cash', '/app/buku-uang', 'pink'],
-    ['Harga Barang', 'tag', '/app/harga-barang', 'peach'],
-    ['Tanya Data', 'ask', '/app/tanya-data', 'lilac'],
-  ] as const
+  const unpaid = invoices.filter((invoice) => invoice.branch === branch && invoice.status !== 'Lunas').length
   return (
     <main className="page home">
-      <div className="home-brand">
-        <Brand />
-        <b>Toko Santri</b>
-      </div>
-      <header className="store-switch">
-        <div>
+      <HomeHero />
+      <section className="store-switch">
+        <div className="store-pill">
+          <StoreIcon className="pill-store" />
           <h1>{branch}</h1>
         </div>
         <button
@@ -454,8 +601,12 @@ function Home() {
         >
           ⇄ Ganti Toko
         </button>
-      </header>
+      </section>
       <section className="greeting">
+        <GreetingScene />
+        <Heart className="float-heart h1" />
+        <Heart className="float-heart h2" />
+        <Rays className="kitten-rays" />
         <Kitten />
         <div className="speech-bubble">
           <svg viewBox="0 0 220 150" preserveAspectRatio="none" aria-hidden="true">
@@ -464,25 +615,42 @@ function Home() {
               d="M24 99C12 87 6 74 6 59 6 25 47 5 109 5c63 0 105 26 105 69 0 42-41 71-104 71-37 0-66-10-83-28L7 130l15-26Z"
             />
           </svg>
-          <h2>Mau lihat apa, Bu?</h2>
+          <h2>
+            <span>
+              Mau lihat
+              <br />
+              apa, Bu?
+            </span>
+            <Heart className="bubble-heart" />
+          </h2>
         </div>
       </section>
       <section className="features">
-        {cards.map(([name, icon, to, color]) => (
-          <Link className="feature" key={name} to={to}>
-            <span className={color}>
-              <MenuIllustration name={icon} />
-            </span>
-            <b>{name}</b>
-          </Link>
-        ))}
+        <Link className="feature" to="/app/buku-besar">
+          <span>
+            <MenuIllustration name="ledger" />
+          </span>
+          <b>Buku Besar</b>
+        </Link>
+        <Link className="feature" to="/app/buku-uang">
+          <span>
+            <MenuIllustration name="cash" />
+          </span>
+          <b>Buku Uang</b>
+        </Link>
+        <Link className="feature wide" to="/app/tanya-data">
+          <span>
+            <MenuIllustration name="ask" />
+          </span>
+          <b>Tanya Data</b>
+        </Link>
       </section>
       <Link className="reminder" to="/app/buku-besar">
         <span>
           <Icon name="bell" />
         </span>
         <div>
-          <b>{unpaid} nota belum lunas</b>
+          <b>{unpaid ? `${unpaid} nota belum lunas` : 'Semua nota lunas'}</b>
         </div>
         <em>›</em>
       </Link>
@@ -490,10 +658,10 @@ function Home() {
   )
 }
 
-function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
+function PageHeader({ title, subtitle, back = '/app' }: { title: string; subtitle: string; back?: string }) {
   return (
     <header className="inner-head">
-      <Link to="/app" aria-label="Kembali">
+      <Link to={back} aria-label="Kembali">
         ‹
       </Link>
       <div>
@@ -504,42 +672,64 @@ function PageHeader({ title, subtitle }: { title: string; subtitle: string }) {
   )
 }
 
+const supplierPath = (supplier: string) => `/app/buku-besar/supplier/${encodeURIComponent(supplier)}`
+const dayLabel = (date: string) => {
+  const today = todayISO()
+  const yesterday = new Date()
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (date === today) return 'Hari ini'
+  if (date === yesterday.toISOString().slice(0, 10)) return 'Kemarin'
+  return shortDate(date)
+}
+const paidText = (invoice: Invoice) =>
+  invoice.status === 'Lunas'
+    ? `Lunas ${invoice.paidDates.length ? shortDate(invoice.paidDates.at(-1)!) : ''}`.trim()
+    : invoice.status === 'Sebagian'
+      ? `Sisa ${rupiah(invoice.remainingBalance)}`
+      : 'Belum dibayar'
+
+/** Buku Besar: rekap nota per supplier. */
 function Ledger() {
-  const { branch, invoices, payments } = useStore()
+  const { branch, invoices } = useStore()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('Semua')
   const navigate = useNavigate()
   const branchInvoices = invoices.filter((invoice) => invoice.branch === branch)
-  const filtered = branchInvoices.filter((invoice) => {
-    const haystack =
-      `${invoice.supplier} ${invoice.number} ${invoice.date} ${shortDate(invoice.date)} ${invoice.items.map((item) => item.product).join(' ')}`.toLowerCase()
-    return (
-      haystack.includes(query.toLowerCase()) && (status === 'Semua' || invoice.status === status)
+  const q = query.trim().toLowerCase()
+  const groups = [...new Set(branchInvoices.map((invoice) => invoice.supplier))]
+    .sort((a, b) => a.localeCompare(b, 'id'))
+    .map((supplier) => {
+      const notes = branchInvoices.filter((invoice) => invoice.supplier === supplier)
+      return {
+        supplier,
+        notes,
+        last: notes.reduce((max, invoice) => (invoice.date > max ? invoice.date : max), ''),
+        remaining: notes.reduce((sum, invoice) => sum + invoice.remainingBalance, 0),
+        open: notes.filter((invoice) => invoice.status !== 'Lunas').length,
+      }
+    })
+    .filter(
+      (group) =>
+        !q ||
+        group.supplier.toLowerCase().includes(q) ||
+        group.notes.some(
+          (invoice) =>
+            invoice.number.toLowerCase().includes(q) ||
+            invoice.items.some((item) => item.product.toLowerCase().includes(q)),
+        ),
     )
-  })
-  const openTotal = branchInvoices
-    .filter((invoice) => invoice.status !== 'Lunas')
-    .reduce(
-      (sum, invoice) =>
-        sum +
-        invoice.total -
-        payments
-          .filter((payment) => payment.invoiceId === invoice.id)
-          .reduce((paid, payment) => paid + payment.amount, 0),
-      0,
-    )
+  const openTotal = branchInvoices.reduce((sum, invoice) => sum + invoice.remainingBalance, 0)
   return (
     <main className="page inner">
-      <PageHeader title="Buku Besar" subtitle={`${branch}`} />
+      <PageHeader title="Buku Besar" subtitle={`${branch} • Data simulasi`} />
       <section>
         <div className="summary">
           <span>
-            <small>Sisa belum dibayar</small>
+            <small>Belum dibayar</small>
             <b>{rupiah(openTotal)}</b>
           </span>
           <span>
-            <small>Nota aktif</small>
-            <b>{branchInvoices.filter((item) => item.status !== 'Lunas').length} nota</b>
+            <small>Supplier</small>
+            <b>{groups.length}</b>
           </span>
         </div>
         <label className="search">
@@ -547,62 +737,76 @@ function Ledger() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Supplier, nota, produk, atau tanggal"
+            placeholder="Cari supplier, nota, atau barang"
+            aria-label="Cari"
           />
         </label>
-        <div className="filters">
-          {['Semua', 'Belum Bayar', 'Sebagian', 'Lunas'].map((item) => (
-            <button
-              className={status === item ? 'active' : ''}
-              onClick={() => setStatus(item)}
-              key={item}
-            >
-              {item}
+        <div className="supplier-list">
+          {groups.map((group) => (
+            <button className="supplier-card" key={group.supplier} onClick={() => navigate(supplierPath(group.supplier))}>
+              <span>
+                <b>{group.supplier}</b>
+                <small>
+                  {group.notes.length} nota • terakhir {shortDate(group.last)}
+                </small>
+              </span>
+              <strong className={group.remaining ? 'due' : ''}>
+                {group.remaining ? rupiah(group.remaining) : '✓'}
+                <small>{group.remaining ? `${group.open} belum lunas` : 'lunas'}</small>
+              </strong>
             </button>
           ))}
         </div>
-        <div className="invoice-list">
-          {filtered.map((invoice) => (
-            <InvoiceCard
-              key={invoice.id}
-              invoice={invoice}
-              onOpen={() => navigate(`/app/buku-besar/${encodeURIComponent(invoice.number)}`)}
-            />
-          ))}
-        </div>
-        {!filtered.length && <Empty text="Nota tidak ditemukan. Coba kata pencarian lain." />}
+        {!groups.length && <Empty text="Tidak ketemu. Coba kata lain." />}
+      </section>
+    </main>
+  )
+}
+
+/** Daftar nota satu supplier, terbaru di atas. */
+function SupplierNotes() {
+  const { branch, invoices } = useStore()
+  const pathname = usePathname()
+  const navigate = useNavigate()
+  const supplier = decodeURIComponent(pathname.split('/').at(-1) ?? '')
+  const notes = invoices
+    .filter((invoice) => invoice.branch === branch && invoice.supplier === supplier)
+    .sort((a, b) => b.date.localeCompare(a.date))
+  if (!notes.length) return <Navigate to="/app/buku-besar" replace />
+  return (
+    <main className="page inner">
+      <PageHeader title={supplier} subtitle={`${branch} • ${notes.length} nota`} back="/app/buku-besar" />
+      <section className="invoice-list">
+        {notes.map((invoice) => (
+          <InvoiceCard
+            key={invoice.id}
+            invoice={invoice}
+            onOpen={() => navigate(`/app/buku-besar/${encodeURIComponent(invoice.number)}`)}
+          />
+        ))}
       </section>
     </main>
   )
 }
 
 function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void }) {
+  const first = invoice.items[0]
   return (
-    <article className="invoice-card" onClick={onOpen}>
+    <article className="invoice-card compact" onClick={onOpen}>
       <div className="invoice-top">
-        <span className={`status ${invoice.status.replace(' ', '-').toLowerCase()}`}>
-          {invoice.status}
-        </span>
-        <small>{shortDate(invoice.date)}</small>
+        <small>Datang {shortDate(invoice.date)}</small>
+        <small>{invoice.number}</small>
       </div>
-      <h2>{invoice.supplier}</h2>
-      <p>{invoice.number}</p>
-      <div className="invoice-products">
-        {invoice.items.map((item) => (
-          <span key={item.product}>
-            {item.product}{' '}
-            <b>
-              {item.quantity} {item.unit}
-            </b>
-          </span>
-        ))}
-      </div>
-      <footer>
+      <p className="invoice-first">
+        {first.product}
         <span>
-          <small>Total</small>
-          <b>{rupiah(invoice.total)}</b>
+          {first.quantity} {first.unit} × {rupiah(first.unitPrice)}
         </span>
-        <button>Lihat rincian</button>
+      </p>
+      {invoice.items.length > 1 && <p className="invoice-more">+{invoice.items.length - 1} barang lain</p>}
+      <footer>
+        <b>{rupiah(invoice.total)}</b>
+        <em className={`pay-state ${invoice.status.replace(' ', '-').toLowerCase()}`}>{paidText(invoice)}</em>
       </footer>
     </article>
   )
@@ -611,7 +815,7 @@ function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void
 function InvoiceDetail() {
   const { invoices, payments } = useStore()
   const pathname = usePathname()
-  const invoiceId = pathname.split('/').filter(Boolean).at(-1)
+  const invoiceId = decodeURIComponent(pathname.split('/').filter(Boolean).at(-1) ?? '')
   const navigate = useNavigate()
   const invoice = invoices.find((item) => item.id === invoiceId || item.number === invoiceId)
   const [showPayment, setShowPayment] = useState(false)
@@ -622,14 +826,22 @@ function InvoiceDetail() {
   const remaining = invoice.remainingBalance
   return (
     <main className="page inner">
-      <PageHeader title={invoice.number} subtitle={`${invoice.branch} • ${invoice.supplier}`} />
+      <PageHeader
+        title={invoice.number}
+        subtitle={`${invoice.supplier} • Data simulasi`}
+        back={supplierPath(invoice.supplier)}
+      />
       <section>
         <div className="detail-hero">
           <span className={`status ${invoice.status.replace(' ', '-').toLowerCase()}`}>
             {invoice.status}
           </span>
           <p>
-            Tanggal nota {shortDate(invoice.date)} • Jatuh tempo {shortDate(invoice.dueDate)}
+            Barang datang {shortDate(invoice.date)} • Jatuh tempo {shortDate(invoice.dueDate)}
+            <br />
+            {invoice.paidDates.length
+              ? `Dibayar ${invoice.paidDates.map((date) => shortDate(date)).join(', ')}`
+              : 'Belum dibayar'}
           </p>
           <h2>{rupiah(invoice.total)}</h2>
           <div>
@@ -696,12 +908,38 @@ function InvoiceDetail() {
           onClose={() => setShowPayment(false)}
           onSaved={() => {
             setShowPayment(false)
-            setToast('Pembayaran tersimpan dan otomatis muncul di Buku Uang.')
+            setToast('Pembayaran simulasi tersimpan di perangkat ini dan muncul di Buku Uang.')
           }}
         />
       )}{' '}
       {toast && <Toast text={toast} />}
     </main>
+  )
+}
+
+/** Pilihan Sudah / Belum dicatat di ACOSYS (bukan checkbox). */
+function AcosysChoice({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <div className="acosys-choice" role="radiogroup" aria-label="Sudah dicatat di ACOSYS?">
+      <span>Di ACOSYS?</span>
+      <div>
+        {[
+          ['Sudah', true],
+          ['Belum', false],
+        ].map(([label, option]) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={value === option}
+            key={String(label)}
+            className={value === option ? 'active' : ''}
+            onClick={() => onChange(option as boolean)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 
@@ -716,9 +954,8 @@ function PaymentModal({
   onClose: () => void
   onSaved: () => void
 }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const { recordPayment } = useStore()
+  const [date, setDate] = useState(() => todayISO())
   const [amount, setAmount] = useState(String(remaining))
   const [method, setMethod] = useState<PaymentMethod>('bca')
   const [proofName, setProofName] = useState('')
@@ -729,28 +966,36 @@ function PaymentModal({
     const numericAmount = Number(amount)
     if (!date || numericAmount <= 0 || numericAmount > remaining || !proofName)
       return setError('Lengkapi data dan pastikan jumlah tidak melebihi sisa tagihan.')
-    const formData = new FormData(event.currentTarget as HTMLFormElement)
-    formData.set('invoiceId', invoice.id)
-    formData.set('amount', String(numericAmount))
-    formData.set('date', date)
-    formData.set('method', method)
-    if (acosys) formData.set('acosysRecorded', 'on')
-    startTransition(async () => {
-      const result = await recordPaymentAction(formData)
-      if (!result.ok) {
-        setError(result.error ?? 'Pembayaran gagal disimpan.')
-        return
-      }
-      router.refresh()
-      onSaved()
+    const result = recordPayment({
+      invoiceId: invoice.id,
+      date,
+      amount: numericAmount,
+      method,
+      proofName,
+      acosysRecorded: acosys,
     })
+    if (!result.ok) return setError(result.error ?? 'Pembayaran gagal disimpan.')
+    onSaved()
+  }
+  function chooseProof(file: File | undefined) {
+    setError('')
+    if (!file) return setProofName('')
+    if (file.size > 10 * 1024 * 1024) {
+      setProofName('')
+      return setError('Ukuran bukti maksimal 10 MB.')
+    }
+    if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+      setProofName('')
+      return setError('Bukti harus berupa gambar atau PDF.')
+    }
+    setProofName(file.name)
   }
   return (
     <div className="backdrop" onClick={onClose}>
       <form className="payment-modal" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
         <div className="modal-head">
           <div>
-            <small>KONFIRMASI PEMBAYARAN</small>
+            <small>KONFIRMASI PEMBAYARAN • SIMULASI</small>
             <h2>{invoice.supplier}</h2>
             <p>
               {invoice.number} • Sisa {rupiah(remaining)}
@@ -762,13 +1007,23 @@ function PaymentModal({
         </div>
         <label>
           Tanggal pembayaran
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <input
+            type="date"
+            value={date}
+            max={todayISO()}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </label>
         <label>
           Jumlah dibayar
           <div className="money-input">
             <span>Rp</span>
-            <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input
+              type="number"
+              inputMode="numeric"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
           </div>
         </label>
         <label>
@@ -786,348 +1041,250 @@ function PaymentModal({
               type="file"
               name="proof"
               accept="image/*,.pdf"
-              onChange={(e) => setProofName(e.target.files?.[0]?.name || '')}
+              onChange={(e) => chooseProof(e.target.files?.[0])}
             />
             {proofName || 'Pilih foto atau PDF'}
           </span>
         </label>
-        <label className="check">
-          <input type="checkbox" checked={acosys} onChange={(e) => setAcosys(e.target.checked)} />
-          <span>
-            <b>Sudah dicatat di ACOSYS</b>
-            <small>Hanya penanda. Integrasi ACOSYS masih dinonaktifkan.</small>
-          </span>
-        </label>
+        <AcosysChoice value={acosys} onChange={setAcosys} />
+        <p className="info-note">Simulasi: hanya tersimpan di HP ini, bukti tidak diunggah.</p>
         {error && <p className="form-error">{error}</p>}
-        <button className="primary" type="submit" disabled={pending}>
-          {pending ? 'Menyimpan...' : 'Simpan Pembayaran'}
+        <button className="primary" type="submit">
+          Simpan Pembayaran
         </button>
       </form>
     </div>
   )
 }
 
+/** Buku Uang: uang masuk (QRIS/transfer) dan bayar supplier, per hari. */
 function CashBook() {
-  const { branch, payments, invoices, customerIncome, balances } = useStore()
-  const [tab, setTab] = useState<'Transaksi' | 'Saldo'>('Transaksi')
-  const branchPayments = payments.filter((payment) => payment.branch === branch)
-  const income = customerIncome.filter((item) => item.branch === branch)
-  const transactions = [
-    ...income.map((item) => ({
-      id: item.id,
-      date: item.date,
-      title: item.customer,
-      detail: `${item.method} • ${item.reference}`,
-      amount: item.amount,
-      type: 'in' as const,
-      source: '',
-    })),
-    ...branchPayments.map((payment) => {
-      const invoice = invoices.find((item) => item.id === payment.invoiceId)!
-      return {
-        id: payment.id,
-        date: payment.date,
-        title: `Bayar ${invoice.supplier}`,
-        detail: `${payment.method} • ${invoice.number}`,
-        amount: payment.amount,
-        type: 'out' as const,
-        source: invoice.number,
-      }
-    }),
-  ].sort((a, b) => b.date.localeCompare(a.date))
-  const branchBalances = balances.filter((item) => item.branch === branch)
-  const totalBalance = branchBalances.reduce((sum, item) => sum + item.balance, 0)
+  const { branch, payments, invoices, customerIncome } = useStore()
+  const [filter, setFilter] = useState<'Semua' | 'Masuk' | 'Keluar'>('Semua')
+  const month = todayISO().slice(0, 7)
+  const rows = [
+    ...customerIncome
+      .filter((item) => item.branch === branch)
+      .map((item) => ({
+        id: item.id,
+        date: item.date,
+        title: item.method === 'QRIS' ? 'QRIS pelanggan' : 'Transfer pelanggan',
+        detail: '',
+        amount: item.amount,
+        type: 'in' as const,
+        source: '',
+      })),
+    ...payments
+      .filter((payment) => payment.branch === branch)
+      .map((payment) => {
+        const invoice = invoices.find((item) => item.id === payment.invoiceId)!
+        return {
+          id: payment.id,
+          date: payment.date,
+          title: invoice.supplier,
+          detail: `${payment.method} • ${invoice.number}`,
+          amount: payment.amount,
+          type: 'out' as const,
+          source: invoice.number,
+        }
+      }),
+  ].sort((a, b) => b.date.localeCompare(a.date) || (a.type === b.type ? 0 : a.type === 'in' ? -1 : 1))
+  const monthIn = rows.filter((row) => row.type === 'in' && row.date.startsWith(month)).reduce((s, r) => s + r.amount, 0)
+  const monthOut = rows.filter((row) => row.type === 'out' && row.date.startsWith(month)).reduce((s, r) => s + r.amount, 0)
+  const shown = rows.filter((row) => filter === 'Semua' || (filter === 'Masuk' ? row.type === 'in' : row.type === 'out'))
+  const days = [...new Set(shown.map((row) => row.date))]
   return (
     <main className="page inner">
-      <PageHeader title="Buku Uang" subtitle={`${branch}`} />
+      <PageHeader title="Buku Uang" subtitle={`${branch} • Data simulasi`} />
       <section>
-        <div className="balance">
-          <small>Total kas & bank</small>
-          <b>{rupiah(totalBalance)}</b>
-          <span>Saldo dari transaksi tercatat</span>
+        <div className="summary">
+          <span>
+            <small>Masuk bulan ini</small>
+            <b className="in">{rupiah(monthIn)}</b>
+          </span>
+          <span>
+            <small>Bayar supplier</small>
+            <b className="out">{rupiah(monthOut)}</b>
+          </span>
         </div>
-        <div className="segment">
-          <button
-            className={tab === 'Transaksi' ? 'active' : ''}
-            onClick={() => setTab('Transaksi')}
-          >
-            Transaksi
-          </button>
-          <button className={tab === 'Saldo' ? 'active' : ''} onClick={() => setTab('Saldo')}>
-            Saldo
-          </button>
+        <div className="filters">
+          {(['Semua', 'Masuk', 'Keluar'] as const).map((item) => (
+            <button key={item} className={filter === item ? 'active' : ''} onClick={() => setFilter(item)}>
+              {item === 'Masuk' ? 'Uang masuk' : item === 'Keluar' ? 'Bayar supplier' : 'Semua'}
+            </button>
+          ))}
         </div>
-        {tab === 'Transaksi' ? (
-          <div className="list">
-            {transactions.map((item) => (
-              <div className="row" key={item.id}>
-                <span className={`money ${item.type}`}>{item.type === 'in' ? '+' : '−'}</span>
-                <div>
-                  <b>{item.title}</b>
-                  <small>
-                    {shortDate(item.date)} • {item.detail}
-                  </small>
-                  {item.source && (
-                    <Link to={`/app/buku-besar/${item.source}`}>Buka nota sumber</Link>
-                  )}
-                </div>
-                <strong className={item.type}>
-                  {item.type === 'in' ? '+' : '−'}
-                  {rupiah(item.amount)}
-                </strong>
-              </div>
-            ))}
+        {days.slice(0, 45).map((day) => (
+          <div className="day-group" key={day}>
+            <h3 className="day-head">{dayLabel(day)}</h3>
+            <div className="list">
+              {shown
+                .filter((row) => row.date === day)
+                .map((item) => (
+                  <div className="row" key={item.id}>
+                    <span className={`money ${item.type}`}>{item.type === 'in' ? '+' : '−'}</span>
+                    <div>
+                      <b>{item.title}</b>
+                      {item.detail && <small>{item.detail}</small>}
+                      {item.source && <Link to={`/app/buku-besar/${item.source}`}>Lihat nota</Link>}
+                    </div>
+                    <strong className={item.type}>
+                      {item.type === 'in' ? '+' : '−'}
+                      {rupiah(item.amount)}
+                    </strong>
+                  </div>
+                ))}
+            </div>
           </div>
-        ) : (
-          <div className="balance-list">
-            {branchBalances.map((item) => (
-              <div key={item.name}>
-                <span>
-                  <b>{item.name}</b>
-                  <small>Saldo tercatat</small>
-                </span>
-                <strong>{rupiah(item.balance)}</strong>
-              </div>
-            ))}
+        ))}
+        {!days.length && <Empty text="Belum ada catatan." />}
+      </section>
+    </main>
+  )
+}
+
+type ChatItem =
+  | { id: number; role: 'user'; text: string }
+  | { id: number; role: 'bot'; answer: Answer; state?: 'saved' | 'cancelled'; result?: string[] }
+
+const EXAMPLES = [
+  'Uang ada berapa?',
+  'Apa yang hampir habis?',
+  'Barang apa yang laris?',
+  'Tagihan APP sudah lunas?',
+  'Barang Kondang Jaya datang kapan?',
+  'Isi 1 koli Africa 115 X 155?',
+  'Spon ati 9mm dari Kondang Jaya kemarin berapa?',
+  'Karpet Mitra sama Planet murah mana?',
+  'Catat harga Busa Ati 9 mm Hitam dari Kondang Jaya Rp 86.000 per LBR',
+  'Ubah harga jual Lem Fox Biru jadi Rp 54.000',
+]
+
+/** Tanya Data: tanya, atau catat harga baru dari WA supplier. */
+function AskData() {
+  const store = useStore()
+  const { branch, invoices, payments, customerIncome, balances, products, confirmAction } = store
+  const [input, setInput] = useState('')
+  const [chat, setChat] = useState<ChatItem[]>([])
+  const [acosys, setAcosys] = useState(false)
+  const endRef = useRef<HTMLDivElement>(null)
+  const nextId = useRef(1)
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
+  }, [chat])
+
+  function ask(question: string) {
+    const text = question.trim()
+    if (!text) return
+    const answer = answerQuestion(text, branch ?? 'Gading', {
+      invoices,
+      payments,
+      income: customerIncome,
+      accounts: balances,
+      products,
+    })
+    setChat((items) => [
+      ...items.map((item) =>
+        item.role === 'bot' && item.answer.action && !item.state ? { ...item, state: 'cancelled' as const } : item,
+      ),
+      { id: nextId.current++, role: 'user', text },
+      { id: nextId.current++, role: 'bot', answer },
+    ])
+    setInput('')
+    setAcosys(false)
+  }
+
+  function decide(id: number, save: boolean) {
+    setChat((items) =>
+      items.map((item) => {
+        if (item.id !== id || item.role !== 'bot' || !item.answer.action) return item
+        if (!save) return { ...item, state: 'cancelled' }
+        return { ...item, state: 'saved', result: confirmAction(item.answer.action, acosys) }
+      }),
+    )
+  }
+
+  return (
+    <main className="page inner ask-page">
+      <PageHeader title="Tanya Data" subtitle={`${branch} • Data simulasi`} />
+      <section className="ask-panel">
+        {!chat.length && (
+          <div className="ask-intro">
+            <span>
+              <Icon name="ask" />
+            </span>
+            <h2>Mau tanya apa, Bu?</h2>
+            <p>Bisa tanya, atau catat harga baru dari WA supplier.</p>
           </div>
         )}
-        <p className="info-note">
-          Pembayaran supplier berasal langsung dari Buku Besar agar tidak tercatat dua kali.
-        </p>
-      </section>
-    </main>
-  )
-}
-
-function Prices() {
-  const { branch, products } = useStore()
-  const [query, setQuery] = useState('')
-  const [openId, setOpenId] = useState<string | null>(null)
-  const filtered = products.filter(
-    (product) =>
-      product.branch === branch &&
-      `${product.name} ${product.supplier}`.toLowerCase().includes(query.toLowerCase()),
-  )
-  return (
-    <main className="page inner">
-      <PageHeader title="Harga Barang" subtitle={`${branch}`} />
-      <section>
-        <label className="search">
-          <span>⌕</span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cari produk atau supplier"
-          />
-        </label>
-        <div className="product-list">
-          {filtered.map((product) => {
-            const latest = product.history[0]
-            const warning = latest ? product.sellPrice < latest.unitPrice : false
-            const open = openId === product.id
-            return (
-              <article className="product-card" key={product.id}>
-                <button onClick={() => setOpenId(open ? null : product.id)}>
-                  <div className="product-icon">□</div>
-                  <span>
-                    <small>{product.supplier}</small>
-                    <b>{product.name}</b>
-                    <em>{product.packaging}</em>
-                  </span>
-                  <strong>
-                    {rupiah(product.sellPrice)}
-                    <small>harga jual / {product.baseUnit}</small>
-                  </strong>
-                </button>
-                {warning && latest && (
-                  <p className="cost-warning">
-                    ! Harga jual {rupiah(latest.unitPrice - product.sellPrice)} di bawah harga beli
-                    terakhir.
-                  </p>
-                )}
-                {open && (
-                  <div className="price-history">
-                    <div className="conversion">
-                      <span>Konversi kemasan</span>
-                      <b>
-                        {product.packaging} ({product.conversion} {product.baseUnit})
-                      </b>
-                    </div>
-                    <h3>Perbandingan harga beli</h3>
-                    {product.history.map((history, index) => (
-                      <div key={history.invoice}>
-                        <span>
-                          <i className={index ? '' : 'current'} />
-                          <span>
-                            <b>
-                              {rupiah(history.unitPrice)} / {history.unit}
-                            </b>
-                            <small>
-                              {shortDate(history.date)} • {history.invoice}
-                            </small>
-                          </span>
-                        </span>
-                        {index === 0 && product.history[1] && (
-                          <em
-                            className={
-                              history.unitPrice > product.history[1].unitPrice ? 'up' : 'down'
-                            }
-                          >
-                            {history.unitPrice > product.history[1].unitPrice ? 'Naik' : 'Turun'}{' '}
-                            {rupiah(Math.abs(history.unitPrice - product.history[1].unitPrice))}
-                          </em>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </article>
-            )
-          })}
-        </div>
-        {!filtered.length && <Empty text="Produk atau supplier tidak ditemukan." />}
-      </section>
-    </main>
-  )
-}
-
-type Answer = { text: string; sources: Array<{ label: string; to: string }> }
-
-function AskData() {
-  const { branch, invoices, payments, customerIncome, products } = useStore()
-  const [input, setInput] = useState('')
-  const [answer, setAnswer] = useState<Answer | null>(null)
-  const examples = [
-    'Nota mana yang belum lunas?',
-    'Berapa transfer masuk hari ini?',
-    'Barang apa dijual di bawah modal?',
-    'Pembayaran mana belum masuk ACOSYS?',
-  ]
-  function ask(question: string) {
-    setInput(question)
-    const q = question.toLowerCase()
-    const branchInvoices = invoices.filter((invoice) => invoice.branch === branch)
-    if (q.includes('belum lunas') || q.includes('belum bayar')) {
-      const matches = branchInvoices.filter((invoice) => invoice.status !== 'Lunas')
-      const remaining = matches.reduce(
-        (sum, invoice) =>
-          sum +
-          invoice.total -
-          payments
-            .filter((payment) => payment.invoiceId === invoice.id)
-            .reduce((paid, payment) => paid + payment.amount, 0),
-        0,
-      )
-      setAnswer({
-        text: matches.length
-          ? `Ada ${matches.length} nota belum lunas dengan sisa total ${rupiah(remaining)}.`
-          : 'Tidak ada nota yang belum lunas.',
-        sources: matches.map((invoice) => ({
-          label: `${invoice.number} • ${invoice.supplier}`,
-          to: `/app/buku-besar/${encodeURIComponent(invoice.number)}`,
-        })),
-      })
-    } else if (q.includes('transfer') || q.includes('qris') || q.includes('masuk hari')) {
-      const today = new Date().toISOString().slice(0, 10)
-      const matches = customerIncome.filter(
-        (item) =>
-          item.branch === branch &&
-          item.date.slice(0, 10) === today &&
-          (q.includes('qris') ? item.method === 'QRIS' : true),
-      )
-      const total = matches.reduce((sum, item) => sum + item.amount, 0)
-      setAnswer({
-        text: matches.length
-          ? `Pemasukan hari ini adalah ${rupiah(total)} dari ${matches.length} transaksi.`
-          : 'Tidak ada transaksi yang cocok pada catatan cabang ini.',
-        sources: matches.map((item) => ({
-          label: `${item.reference} • ${item.method}`,
-          to: '/app/buku-uang',
-        })),
-      })
-    } else if (q.includes('modal') || q.includes('bawah') || q.includes('harga')) {
-      const matches = products.filter(
-        (product) =>
-          product.branch === branch &&
-          product.history[0] &&
-          product.sellPrice < product.history[0].unitPrice,
-      )
-      setAnswer({
-        text: matches.length
-          ? `${matches.map((item) => item.name).join(', ')} dijual di bawah harga beli terakhir. Tinjau harga jual sebelum transaksi berikutnya.`
-          : 'Tidak ada produk yang dijual di bawah harga beli terakhir.',
-        sources: matches.map((item) => ({
-          label: `${item.name} • ${item.history[0]?.invoice ?? 'Harga terakhir'}`,
-          to: '/app/harga-barang',
-        })),
-      })
-    } else if (q.includes('acosys')) {
-      const matches = branchInvoices.filter((invoice) => !invoice.acosysRecorded)
-      setAnswer({
-        text: matches.length
-          ? `${matches.length} nota belum ditandai masuk ACOSYS. Integrasi otomatis tetap dinonaktifkan.`
-          : 'Semua nota telah ditandai masuk ACOSYS.',
-        sources: matches.map((invoice) => ({
-          label: invoice.number,
-          to: `/app/buku-besar/${encodeURIComponent(invoice.number)}`,
-        })),
-      })
-    } else {
-      setAnswer({
-        text: 'Saya belum menemukan jawaban dari catatan yang tersedia. Coba tanyakan nota, transfer, QRIS, harga modal, atau status ACOSYS.',
-        sources: [],
-      })
-    }
-  }
-  return (
-    <main className="page inner">
-      <PageHeader title="Tanya Data" subtitle={`${branch}`} />
-      <section className="ask-panel">
-        <div className="ask-intro">
-          <span>
-            <Icon name="ask" />
-          </span>
-          <h2>Tanyakan tentang toko</h2>
-          <p>Jawaban hanya dibuat jika ada catatan sumbernya.</p>
-        </div>
         <div className="suggestions">
-          {examples.map((text) => (
+          {EXAMPLES.map((text) => (
             <button key={text} onClick={() => ask(text)}>
               {text}
             </button>
           ))}
         </div>
-        {answer && (
-          <div className="answer">
-            <small>JAWABAN DARI DATA {branch?.toUpperCase()}</small>
-            <p>{answer.text}</p>
-            {answer.sources.length > 0 && (
-              <div className="sources">
-                <b>Sumber</b>
-                {answer.sources.map((source) => (
-                  <Link to={source.to} key={source.label}>
-                    {source.label}
-                    <span>›</span>
-                  </Link>
+        <div className="chat">
+          {chat.map((item) =>
+            item.role === 'user' ? (
+              <p className="chat-user" key={item.id}>
+                {item.text}
+              </p>
+            ) : (
+              <div className={`answer ${item.answer.tone ?? ''}`} key={item.id}>
+                {item.answer.lines.map((line, index) => (
+                  <p key={index}>{line}</p>
                 ))}
+                {item.answer.action && !item.state && (
+                  <div className="confirm">
+                    <AcosysChoice value={acosys} onChange={setAcosys} />
+                    <div>
+                      <button className="confirm-yes" onClick={() => decide(item.id, true)}>
+                        Simpan
+                      </button>
+                      <button className="confirm-no" onClick={() => decide(item.id, false)}>
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {item.state === 'cancelled' && item.answer.action && <p className="muted">Tidak disimpan.</p>}
+                {item.state === 'saved' && (
+                  <div className="saved">
+                    {item.result?.map((line, index) => (
+                      <p key={index}>{line}</p>
+                    ))}
+                  </div>
+                )}
+                {item.answer.sources.length > 0 && (
+                  <div className="sources">
+                    <b>Sumber</b>
+                    {item.answer.sources.slice(0, 4).map((source, index) => (
+                      <Link to={source.to} key={`${source.label}-${index}`}>
+                        {source.label}
+                        <span>›</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-            {!answer.sources.length && (
-              <p className="no-source">Tidak ada angka keuangan yang dibuat tanpa sumber.</p>
-            )}
-          </div>
-        )}
+            ),
+          )}
+          <div ref={endRef} />
+        </div>
         <form
           className="ask-form"
-          onSubmit={(e) => {
+          onSubmit={(e: FormEvent) => {
             e.preventDefault()
-            if (input.trim()) ask(input.trim())
+            ask(input)
           }}
         >
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Contoh: Nota mana belum lunas?"
+            placeholder="Tulis pertanyaan atau harga baru…"
+            aria-label="Pertanyaan"
           />
           <button aria-label="Kirim">↑</button>
         </form>
@@ -1165,45 +1322,44 @@ function NotFound() {
   )
 }
 
-export default function TokoApp({
-  data,
-  allowedBranches,
-}: {
-  data: TokoData
-  allowedBranches: Branch[]
-}) {
+const TITLES: Array<[RegExp, string]> = [
+  [/^\/$/, 'Pasang Aplikasi'],
+  [/^\/pilih-toko$/, 'Pilih Toko'],
+  [/^\/app$/, 'Beranda'],
+  [/^\/app\/buku-besar$/, 'Buku Besar'],
+  [/^\/app\/buku-besar\/supplier\//, 'Nota Supplier'],
+  [/^\/app\/buku-besar\//, 'Rincian Nota'],
+  [/^\/app\/buku-uang$/, 'Buku Uang'],
+  [/^\/app\/tanya-data$/, 'Tanya Data'],
+]
+
+function Screens() {
   const pathname = usePathname()
-  const router = useRouter()
-  const [, startLogout] = useTransition()
+  const { branch } = useStore()
 
-  let screen: ReactNode = <NotFound />
-  if (pathname === '/') screen = <Welcome />
-  else if (pathname === '/pilih-toko') screen = <BranchPicker />
-  else if (pathname === '/app') screen = <Home />
-  else if (pathname === '/app/buku-besar') screen = <Ledger />
-  else if (pathname.startsWith('/app/buku-besar/')) screen = <InvoiceDetail />
-  else if (pathname === '/app/buku-uang') screen = <CashBook />
-  else if (pathname === '/app/harga-barang') screen = <Prices />
-  else if (pathname === '/app/tanya-data') screen = <AskData />
+  useEffect(() => {
+    const title = TITLES.find(([pattern]) => pattern.test(pathname))?.[1]
+    document.title = title ? `${title} • Toko Santri` : 'Halaman tidak ditemukan • Toko Santri'
+  }, [pathname])
 
-  const protectedScreen = pathname.startsWith('/app')
+  if (pathname === '/') return <Start />
+  if (pathname === '/login') return <Navigate to="/pilih-toko" replace />
+  if (pathname === '/pilih-toko') return <BranchPicker />
+  if (pathname.startsWith('/app') && !branch) return <Navigate to="/pilih-toko" replace />
+  if (pathname === '/app') return <Home />
+  if (pathname === '/app/buku-besar') return <Ledger />
+  if (pathname.startsWith('/app/buku-besar/supplier/')) return <SupplierNotes />
+  if (pathname.startsWith('/app/buku-besar/')) return <InvoiceDetail />
+  if (pathname === '/app/buku-uang') return <CashBook />
+  if (pathname === '/app/harga-barang') return <Navigate to="/app/tanya-data" replace />
+  if (pathname === '/app/tanya-data') return <AskData />
+  return <NotFound />
+}
+
+export default function TokoApp() {
   return (
-    <StoreRoot data={data} allowedBranches={allowedBranches}>
-      {screen}
-      {protectedScreen && (
-        <button
-          className="logout-button"
-          onClick={() =>
-            startLogout(async () => {
-              await logoutAction()
-              router.push('/login')
-              router.refresh()
-            })
-          }
-        >
-          Keluar
-        </button>
-      )}
+    <StoreRoot>
+      <Screens />
     </StoreRoot>
   )
 }

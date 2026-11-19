@@ -21,3 +21,22 @@ logs/
 # beside it.
 /.plugins/
 /.opencode-skills/
+
+# Figma Make agent scratch output (tool logs, not source)
+/.tmp/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Local tooling
+.pnpm-store/
+coverage/
+.vercel/
+.turbo/
+
+# Local Claude Code preview config
+.claude/

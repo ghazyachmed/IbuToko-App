@@ -2429,3 +2429,100 @@
   color: var(--berry);
   box-shadow: 0 3px 10px #7f2a4f12;
 }
+
+/* Beranda & Pilih Toko penuh selebar layar di desktop; isi tetap di tengah. */
+html,
+body {
+  overflow-x: clip;
+}
+@media (min-width: 760px) {
+  .page.home {
+    --edge: max(58px, calc((100vw - 1080px) / 2));
+    width: 100%;
+    max-width: none;
+    padding: 0 var(--edge) 28px;
+  }
+  .page.home .home-hero {
+    margin: 0 calc(-1 * var(--edge));
+  }
+  .page.home .greeting-scene {
+    left: calc(-1 * var(--edge));
+    width: calc(100% + 2 * var(--edge));
+  }
+}
+
+/* Tombol pasang aplikasi */
+.install-button {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  border: 2px dashed #e86ba0;
+  border-radius: 20px;
+  background: #fff;
+  color: var(--berry);
+  font-family: var(--font-round);
+  font-size: 18px;
+  font-weight: 600;
+}
+.install-button svg,
+.install-icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hero-install {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+.install-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 2px solid #ffffffb3;
+  border-radius: 50%;
+  background: #ffffff2e;
+  color: #fff;
+  animation: heart-beat 2.4s ease-in-out infinite;
+}
+@media (max-width: 759px) and (max-height: 700px) {
+  .install-icon {
+    width: 36px;
+    height: 36px;
+  }
+  .hero-install {
+    top: 8px;
+  }
+}
+
+/* Tombol Sudah Bayar per nota */
+.pay-button {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d9387e, #a8255e);
+  color: #fff;
+  font-family: var(--font-round);
+  font-size: 16px;
+  font-weight: 600;
+}
+.invoice-card.compact > p.invoice-first {
+  color: var(--ink);
+  font-size: 16px;
+}
+.invoice-card.compact > p.invoice-first span {
+  font-size: 14px;
+}
+.invoice-card.compact > p.invoice-more {
+  font-size: 13px;
+}

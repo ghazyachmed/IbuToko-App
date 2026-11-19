@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Toko Santri",
   "short_name": "Toko Santri",
-  "description": "Catatan toko Gading dan Palur: nota supplier, buku uang, harga barang, dan stok (data simulasi).",
+  "description": "Catatan toko Gading dan Palur: Buku Besar, Buku Uang, dan Tanya Data (data simulasi).",
   "lang": "id",
   "dir": "ltr",
   "start_url": "/",
@@ -11,11 +11,71 @@
   "orientation": "portrait-primary",
   "background_color": "#fff7fb",
   "theme_color": "#e94c90",
-  "categories": ["business", "finance", "productivity"],
+  "categories": [
+    "business",
+    "finance",
+    "productivity"
+  ],
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "prefer_related_applications": false,
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/beranda.jpg",
+      "sizes": "780x1688",
+      "type": "image/jpeg",
+      "form_factor": "narrow",
+      "label": "Beranda Toko Santri"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Buku Besar",
+      "url": "/app/buku-besar",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Tanya Data",
+      "url": "/app/tanya-data",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
   ]
 }

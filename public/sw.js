@@ -5,7 +5,7 @@
  * cross-origin requests, or anything that is not a plain same-origin GET.
  * All records shown by the app are simulated and bundled into the JS build.
  */
-const VERSION = 'v5'
+const VERSION = 'v6'
 const CACHE = `toko-santri-static-${VERSION}`
 const SHELL = [
   '/',
@@ -16,7 +16,7 @@ const SHELL = [
   '/icon-512.png',
   '/apple-touch-icon.png',
 ]
-const STATIC_FILES = new Set(SHELL.filter((path) => path !== '/'))
+const STATIC_FILES = new Set(SHELL.filter((path) => path !== '/' && path !== '/manifest.webmanifest'))
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)))
@@ -45,6 +45,22 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin || isPrivate(url)) return
   if (request.headers.has('authorization')) return
+
+  // Manifest: network first so install details update right after a deploy.
+  if (url.pathname === '/manifest.webmanifest') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone()
+            caches.open(CACHE).then((cache) => cache.put(request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(request).then((cached) => cached || Response.error())),
+    )
+    return
+  }
 
   // Page navigations: network first, fall back to the cached app shell offline.
   if (request.mode === 'navigate') {

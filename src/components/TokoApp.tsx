@@ -71,13 +71,163 @@ const isStandalone = () =>
   (window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true)
 
-/** Event pasang aplikasi ditangkap sejak awal, karena layar Pasang muncul setelah Pilih Toko. */
+/*
+ * Pasang aplikasi (PWA). Event "beforeinstallprompt" dari Chrome/Android ditangkap
+ * sejak awal dan disimpan, agar tombol "Pasang Aplikasi" di mana pun bisa langsung
+ * memunculkan dialog pasang. Kalau dialog belum tersedia, tampilkan langkah singkat.
+ */
 let deferredInstall: InstallEvent | null = null
-if (typeof window !== 'undefined')
+let installedNow = false
+const installListeners = new Set<() => void>()
+const emitInstall = () => installListeners.forEach((listener) => listener())
+if (typeof window !== 'undefined') {
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault()
     deferredInstall = event as InstallEvent
+    emitInstall()
   })
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null
+    installedNow = true
+    emitInstall()
+  })
+}
+
+type InstallSheetKind = 'android' | 'android-webview' | 'ios' | 'desktop'
+const installPlatform = (): InstallSheetKind => {
+  const ua = navigator.userAgent
+  if (/android/i.test(ua)) return /; wv\)|FBAN|FBAV|Instagram|Line\//i.test(ua) ? 'android-webview' : 'android'
+  if (/iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return 'ios'
+  return 'desktop'
+}
+
+function useInstall() {
+  const [, rerender] = useState(0)
+  const [sheet, setSheet] = useState<InstallSheetKind | null>(null)
+  useEffect(() => {
+    const listener = () => rerender((value) => value + 1)
+    installListeners.add(listener)
+    return () => {
+      installListeners.delete(listener)
+    }
+  }, [])
+  const standalone = isStandalone() || installedNow
+  async function install(): Promise<boolean> {
+    if (standalone) return true
+    const prompt = deferredInstall
+    if (prompt) {
+      await prompt.prompt()
+      const choice = await prompt.userChoice
+      deferredInstall = null
+      emitInstall()
+      return choice.outcome === 'accepted'
+    }
+    setSheet(installPlatform())
+    return false
+  }
+  return { standalone, canPrompt: Boolean(deferredInstall), install, sheet, closeSheet: () => setSheet(null) }
+}
+
+const INSTALL_STEPS: Record<InstallSheetKind, { title: string; steps: ReactNode[] }> = {
+  android: {
+    title: 'Pasang di Android',
+    steps: [
+      <>
+        Ketuk <b>⋮</b> di kanan atas Chrome.
+      </>,
+      <>
+        Pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.
+      </>,
+      <>
+        Ketuk <b>Instal</b>.
+      </>,
+    ],
+  },
+  'android-webview': {
+    title: 'Buka di Chrome dulu',
+    steps: [
+      <>
+        Ketuk <b>⋮</b> lalu pilih <b>Buka di Chrome</b>.
+      </>,
+      <>
+        Di Chrome, ketuk <b>Pasang Aplikasi</b> lagi.
+      </>,
+    ],
+  },
+  ios: {
+    title: 'Pasang di iPhone',
+    steps: [
+      <>
+        Ketuk tombol <b>Bagikan</b> di Safari.
+      </>,
+      <>
+        Pilih <b>Tambah ke Layar Utama</b>.
+      </>,
+      <>
+        Ketuk <b>Tambah</b>.
+      </>,
+    ],
+  },
+  desktop: {
+    title: 'Pasang di komputer',
+    steps: [
+      <>
+        Klik ikon <b>Pasang</b> di ujung kanan kolom alamat Chrome atau Edge.
+      </>,
+      <>
+        Klik <b>Instal</b>.
+      </>,
+    ],
+  },
+}
+
+function InstallSheet({ kind, onClose }: { kind: InstallSheetKind; onClose: () => void }) {
+  const content = INSTALL_STEPS[kind]
+  return (
+    <div className="backdrop" onClick={onClose}>
+      <section className="sheet" onClick={(e) => e.stopPropagation()}>
+        <i />
+        <h2>{content.title}</h2>
+        <ol>
+          {content.steps.map((step, index) => (
+            <li key={index}>{step}</li>
+          ))}
+        </ol>
+        <button className="primary" onClick={onClose}>
+          Mengerti
+        </button>
+      </section>
+    </div>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14" />
+    </svg>
+  )
+}
+
+/** Tombol pasang; tidak tampil kalau aplikasi sudah terpasang. */
+function InstallButton({ compact = false }: { compact?: boolean }) {
+  const { standalone, install, sheet, closeSheet } = useInstall()
+  if (standalone) return null
+  return (
+    <>
+      <button
+        type="button"
+        className={compact ? 'install-icon' : 'install-button'}
+        onClick={() => void install()}
+        aria-label="Pasang aplikasi"
+      >
+        <DownloadIcon />
+        {!compact && 'Pasang Aplikasi'}
+      </button>
+      {sheet && <InstallSheet kind={sheet} onClose={closeSheet} />}
+    </>
+  )
+}
 
 const iconPaths = {
   ledger: (
@@ -267,13 +417,24 @@ function Rays({ className }: { className?: string }) {
   )
 }
 
-function HomeHero() {
+/** Pojok kanan header: tombol pasang (kalau belum terpasang), selain itu hiasan hati. */
+function HeroCorner({ install }: { install: boolean }) {
+  const { standalone } = useInstall()
+  if (!install || standalone) return <Heart className="hero-heart" />
+  return (
+    <span className="hero-install">
+      <InstallButton compact />
+    </span>
+  )
+}
+
+function HomeHero({ install = false }: { install?: boolean }) {
   return (
     <header className="home-hero">
       <Rays className="hero-rays" />
       <StoreIcon className="hero-store" />
       <b>Toko Santri</b>
-      <Heart className="hero-heart" />
+      <HeroCorner install={install} />
       <svg className="hero-wave" viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0 14C55 2 105 2 160 12s110 14 160 4 60-10 80-8V28H0Z" />
       </svg>
@@ -460,9 +621,7 @@ function Start() {
 
 function Welcome() {
   const navigate = useNavigate()
-  const [installPrompt, setInstallPrompt] = useState<InstallEvent | null>(deferredInstall)
-  const [showIOS, setShowIOS] = useState(false)
-  const [message, setMessage] = useState('')
+  const { install, sheet, closeSheet } = useInstall()
 
   const next = () => {
     writeStorage(WELCOMED_KEY, 'yes')
@@ -470,31 +629,13 @@ function Welcome() {
   }
 
   useEffect(() => {
-    const handler = (event: Event) => {
-      event.preventDefault()
-      deferredInstall = event as InstallEvent
-      setInstallPrompt(deferredInstall)
-    }
     const installed = () => next()
-    window.addEventListener('beforeinstallprompt', handler)
     window.addEventListener('appinstalled', installed)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler)
-      window.removeEventListener('appinstalled', installed)
-    }
+    return () => window.removeEventListener('appinstalled', installed)
   })
 
-  async function install() {
-    if (isStandalone()) return next()
-    if (installPrompt) {
-      await installPrompt.prompt()
-      const result = await installPrompt.userChoice
-      deferredInstall = null
-      setInstallPrompt(null)
-      if (result.outcome === 'accepted') next()
-    } else if (/iphone|ipad|ipod/i.test(navigator.userAgent)) setShowIOS(true)
-    else if (window.top !== window.self) setMessage('Pasang langsung aktif di situs publik.')
-    else setMessage('Pasang langsung belum bisa di browser ini.')
+  async function onInstall() {
+    if (await install()) next()
   }
 
   return (
@@ -519,35 +660,21 @@ function Welcome() {
           </section>
         </div>
         <div className="actions">
-          <button className="primary" onClick={install}>
+          <button className="primary" onClick={() => void onInstall()}>
             Pasang Aplikasi
           </button>
           <button onClick={next}>Lewati</button>
         </div>
       </section>
-      {showIOS && (
-        <div className="backdrop" onClick={() => setShowIOS(false)}>
-          <section className="sheet" onClick={(e) => e.stopPropagation()}>
-            <i />
-            <h2>Pasang di iPhone</h2>
-            <ol>
-              <li>
-                Ketuk tombol <b>Bagikan</b> di Safari.
-              </li>
-              <li>
-                Pilih <b>Tambah ke Layar Utama</b>.
-              </li>
-              <li>
-                Ketuk <b>Tambah</b>.
-              </li>
-            </ol>
-            <button className="primary" onClick={next}>
-              Saya Mengerti
-            </button>
-          </section>
-        </div>
+      {sheet && (
+        <InstallSheet
+          kind={sheet}
+          onClose={() => {
+            closeSheet()
+            next()
+          }}
+        />
       )}
-      {message && <Toast text={message} />}
     </main>
   )
 }
@@ -576,6 +703,7 @@ function BranchPicker() {
             </button>
           ))}
         </div>
+        <InstallButton />
       </section>
     </main>
   )
@@ -587,7 +715,7 @@ function Home() {
   const unpaid = invoices.filter((invoice) => invoice.branch === branch && invoice.status !== 'Lunas').length
   return (
     <main className="page home">
-      <HomeHero />
+      <HomeHero install />
       <section className="store-switch">
         <div className="store-pill">
           <StoreIcon className="pill-store" />
@@ -768,6 +896,8 @@ function SupplierNotes() {
   const { branch, invoices } = useStore()
   const pathname = usePathname()
   const navigate = useNavigate()
+  const [paying, setPaying] = useState<Invoice | null>(null)
+  const [toast, setToast] = useState('')
   const supplier = decodeURIComponent(pathname.split('/').at(-1) ?? '')
   const notes = invoices
     .filter((invoice) => invoice.branch === branch && invoice.supplier === supplier)
@@ -782,14 +912,35 @@ function SupplierNotes() {
             key={invoice.id}
             invoice={invoice}
             onOpen={() => navigate(`/app/buku-besar/${encodeURIComponent(invoice.number)}`)}
+            onPay={() => setPaying(invoice)}
           />
         ))}
       </section>
+      {paying && (
+        <PaymentModal
+          invoice={paying}
+          remaining={paying.remainingBalance}
+          onClose={() => setPaying(null)}
+          onSaved={() => {
+            setToast(`Nota ${paying.number} dicatat sudah bayar.`)
+            setPaying(null)
+          }}
+        />
+      )}
+      {toast && <Toast text={toast} />}
     </main>
   )
 }
 
-function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void }) {
+function InvoiceCard({
+  invoice,
+  onOpen,
+  onPay,
+}: {
+  invoice: Invoice
+  onOpen: () => void
+  onPay: () => void
+}) {
   const first = invoice.items[0]
   return (
     <article className="invoice-card compact" onClick={onOpen}>
@@ -808,6 +959,18 @@ function InvoiceCard({ invoice, onOpen }: { invoice: Invoice; onOpen: () => void
         <b>{rupiah(invoice.total)}</b>
         <em className={`pay-state ${invoice.status.replace(' ', '-').toLowerCase()}`}>{paidText(invoice)}</em>
       </footer>
+      {invoice.status !== 'Lunas' && (
+        <button
+          type="button"
+          className="pay-button"
+          onClick={(event) => {
+            event.stopPropagation()
+            onPay()
+          }}
+        >
+          Sudah Bayar
+        </button>
+      )}
     </article>
   )
 }

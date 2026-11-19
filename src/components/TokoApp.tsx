@@ -574,7 +574,7 @@ function StoreRoot({ children }: { children: ReactNode }) {
           unitPrice: action.unitPrice,
           shipping: action.shipping,
           acosysRecorded,
-          note: 'Info harga dari supplier/sales (dicatat di Tanya Data)',
+          note: 'Info harga dari supplier/sales (dicatat di Tanya & Catat)',
         },
         ...local.prices,
       ],
@@ -770,7 +770,7 @@ function Home() {
           <span>
             <MenuIllustration name="ask" />
           </span>
-          <b>Tanya Data</b>
+          <b>Tanya & Catat</b>
         </Link>
       </section>
       <Link className="reminder" to="/app/buku-besar">
@@ -1323,7 +1323,7 @@ const EXAMPLES = [
   'Ubah harga jual Lem Fox Biru jadi Rp 54.000',
 ]
 
-/** Tanya Data: tanya, atau catat harga baru dari WA supplier. */
+/** Tanya & Catat: tanya, atau catat harga baru dari WA supplier. */
 function AskData() {
   const store = useStore()
   const { branch, invoices, payments, customerIncome, balances, products, confirmAction } = store
@@ -1370,7 +1370,7 @@ function AskData() {
 
   return (
     <main className="page inner ask-page">
-      <PageHeader title="Tanya Data" subtitle={`${branch} • Data simulasi`} />
+      <PageHeader title="Tanya & Catat" subtitle={`${branch} • Data simulasi`} />
       <section className="ask-panel">
         {!chat.length && (
           <div className="ask-intro">
@@ -1493,7 +1493,7 @@ const TITLES: Array<[RegExp, string]> = [
   [/^\/app\/buku-besar\/supplier\//, 'Nota Supplier'],
   [/^\/app\/buku-besar\//, 'Rincian Nota'],
   [/^\/app\/buku-uang$/, 'Buku Uang'],
-  [/^\/app\/tanya-data$/, 'Tanya Data'],
+  [/^\/app\/tanya-data$/, 'Tanya & Catat'],
 ]
 
 function Screens() {

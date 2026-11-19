@@ -5,7 +5,7 @@
  * cross-origin requests, or anything that is not a plain same-origin GET.
  * All records shown by the app are simulated and bundled into the JS build.
  */
-const VERSION = 'v6'
+const VERSION = 'v7'
 const CACHE = `toko-santri-static-${VERSION}`
 const SHELL = [
   '/',

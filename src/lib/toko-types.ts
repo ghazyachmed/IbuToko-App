@@ -87,7 +87,7 @@ export type PurchaseRecord = {
   note?: string
 }
 
-/** Info harga beli baru yang dicatat dari Tanya Data (mis. dari WA supplier). */
+/** Info harga beli baru yang dicatat dari Tanya & Catat (mis. dari WA supplier). */
 export type PriceEntry = {
   id: string
   branch: Branch
@@ -101,7 +101,7 @@ export type PriceEntry = {
   note: string
 }
 
-/** Perubahan harga jual yang dicatat dari Tanya Data. */
+/** Perubahan harga jual yang dicatat dari Tanya & Catat. */
 export type SellPriceEntry = {
   id: string
   branch: Branch

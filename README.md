@@ -1,7 +1,7 @@
 # Toko Santri
 
 PWA pencatatan toko **Gading** dan **Palur**: Buku Besar (nota supplier), Buku Uang,
-dan Tanya Data (tanya + catat harga baru). Semua angka keuangan dan stok adalah
+dan Tanya & Catat (tanya + catat harga baru). Semua angka keuangan dan stok adalah
 **data simulasi**; nama, kategori, satuan, dan harga jual eceran barang mengacu ke
 katalog Toko Santri Nonongan (bukan cabang Gading/Palur).
 

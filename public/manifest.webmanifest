@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Toko Santri",
   "short_name": "Toko Santri",
-  "description": "Catatan toko Gading dan Palur: Buku Besar, Buku Uang, dan Tanya Data (data simulasi).",
+  "description": "Catatan toko Gading dan Palur: Buku Besar, Buku Uang, dan Tanya & Catat (data simulasi).",
   "lang": "id",
   "dir": "ltr",
   "start_url": "/",
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "name": "Tanya Data",
+      "name": "Tanya & Catat",
       "url": "/app/tanya-data",
       "icons": [
         {

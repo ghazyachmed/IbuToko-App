@@ -131,7 +131,7 @@ export const SUPPLIERS = {
   dakron: 'CV Dakron Kapuk Lestari',
 } as const
 
-/** Kata panggilan supplier yang dikenali di Tanya Data (huruf kecil). */
+/** Kata panggilan supplier yang dikenali di Tanya & Catat (huruf kecil). */
 export const SUPPLIER_ALIASES: Record<string, string[]> = {
   'CV Permadani Sentosa': ['permadani sentosa', 'cv permadani'],
   Mitra: ['mitra'],

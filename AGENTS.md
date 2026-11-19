@@ -18,9 +18,9 @@ Toolchain: Node 22 (`.node-version`, `.nvmrc`), pnpm 10 (`packageManager`).
 
 - `src/components/TokoApp.tsx` — all screens. Flow: first open / after install →
   Pilih Toko → (browser only) Pasang Aplikasi → Beranda. Menu: Buku Besar (notes
-  grouped per supplier → nota detail), Buku Uang (per day), Tanya Data (chat that
+  grouped per supplier → nota detail), Buku Uang (per day), Tanya & Catat (chat that
   answers questions and records new buy/sell prices after confirmation).
-  There is no Harga Barang page; `/app/harga-barang` redirects to Tanya Data.
+  There is no Harga Barang page; `/app/harga-barang` redirects to Tanya & Catat.
 - `src/router.tsx` — tiny History-API router; keep existing paths.
 - `src/data/katalog.ts` — products from the Toko Santri Nonongan catalogue
   (names, categories, sell units, retail prices) + simulated purchase units.

@@ -47,5 +47,7 @@ Toolchain: Node 22 (`.node-version`, `.nvmrc`), pnpm 10 (`packageManager`).
 - Glossary: harga beli = HPP + ongkir. A new sell price below the latest buy
   price must be rejected.
 - `public/sw.js` may cache only public static files (shell, `/assets/*`, icons,
-  manifest). Never cache API, authenticated, or financial responses. Bump
-  `VERSION` when changing caching.
+  manifest). Never cache API, authenticated, or financial responses. The build
+  stamps a unique suffix onto `VERSION` in `dist/sw.js` (see `vite.config.ts`),
+  so every deploy is detected by installed apps, which then show a
+  "Versi baru tersedia" bar (`UpdateBanner` in `TokoApp.tsx`).

@@ -2526,3 +2526,35 @@ body {
 .invoice-card.compact > p.invoice-more {
   font-size: 13px;
 }
+
+/* Bar versi baru */
+.update-bar {
+  position: fixed;
+  z-index: 70;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  left: 50%;
+  display: flex;
+  width: min(calc(100% - 28px), 420px);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 18px;
+  transform: translateX(-50%);
+  border-radius: 99px;
+  background: var(--plum);
+  color: #fff;
+  box-shadow: 0 12px 28px #57203c40;
+  font-family: var(--font-round);
+  font-size: 16px;
+  font-weight: 500;
+}
+.update-bar button {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 99px;
+  background: #fff;
+  color: var(--berry);
+  font-family: var(--font-round);
+  font-size: 15px;
+  font-weight: 600;
+}

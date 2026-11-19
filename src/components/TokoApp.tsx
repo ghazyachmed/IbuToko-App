@@ -490,11 +490,6 @@ function StoreRoot({ children }: { children: ReactNode }) {
   const [local, setLocal] = useState<LocalRecords>(() => loadLocalRecords())
   const data = useMemo(() => composeData(local), [local])
 
-  useEffect(() => {
-    if ('serviceWorker' in navigator && import.meta.env.PROD)
-      navigator.serviceWorker.register('/sw.js').catch(() => undefined)
-  }, [])
-
   function setBranch(value: Branch | null) {
     writeStorage(BRANCH_KEY, value)
     updateBranch(value)
@@ -1519,10 +1514,57 @@ function Screens() {
   return <NotFound />
 }
 
+/**
+ * Daftarkan service worker dan cek versi baru setiap kali aplikasi dibuka lagi
+ * (kembali dari latar belakang), saat jendela aktif, dan tiap 30 menit.
+ * Kalau versi baru sudah aktif sementara aplikasi masih terbuka, tampilkan
+ * bar "Versi baru tersedia" agar Ibu bisa memuat ulang dengan satu ketukan.
+ */
+function UpdateBanner() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !import.meta.env.PROD) return
+    const hadController = Boolean(navigator.serviceWorker.controller)
+    let registration: ServiceWorkerRegistration | undefined
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((value) => {
+        registration = value
+      })
+      .catch(() => undefined)
+    const check = () => {
+      if (document.visibilityState === 'visible') registration?.update().catch(() => undefined)
+    }
+    const onControllerChange = () => {
+      if (hadController) setReady(true)
+    }
+    document.addEventListener('visibilitychange', check)
+    window.addEventListener('focus', check)
+    const timer = window.setInterval(check, 30 * 60 * 1000)
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+    return () => {
+      document.removeEventListener('visibilitychange', check)
+      window.removeEventListener('focus', check)
+      window.clearInterval(timer)
+      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange)
+    }
+  }, [])
+  if (!ready) return null
+  return (
+    <div className="update-bar" role="status">
+      <span>Versi baru tersedia</span>
+      <button type="button" onClick={() => window.location.reload()}>
+        Muat ulang
+      </button>
+    </div>
+  )
+}
+
 export default function TokoApp() {
   return (
     <StoreRoot>
       <Screens />
+      <UpdateBanner />
     </StoreRoot>
   )
 }

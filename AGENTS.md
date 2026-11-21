@@ -42,6 +42,12 @@ Toolchain: Node 22 (`.node-version`, `.nvmrc`), pnpm 10 (`packageManager`).
   sell−buy differences as net profit.
 - Stock = sum of incoming − outgoing movements and must never go negative.
 - Keep Gading and Palur data separate.
+- Simulated dates are relative to today, but note numbers (e.g. `GDG-KJ-012`)
+  are stable, so on-device payments keep pointing at the right note. Never build
+  IDs or random seeds from dates.
+- Layout must fit every size: phone portrait (Home = one screen), phone
+  landscape (Kitty left, menu right), tablet portrait (2×2 menu), desktop
+  (3 cards in a row, full-width pink header).
 - Keep the pink theme, the existing Hello Kitty asset (do not redraw it; only
   decorate around it), animations, one-screen home, and the Ganti Toko flow.
 - Glossary: harga beli = HPP + ongkir. A new sell price below the latest buy

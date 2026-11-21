@@ -88,6 +88,16 @@ export function buildSimulatedData(now = new Date()): SimulatedBase {
     for (let d = offset; d <= 165; d += 13) days.push(d)
     return days
   }
+  /**
+   * Nomor nota tetap (tidak berubah walau tanggal simulasi bergeser tiap hari),
+   * mis. "GDG-KJ-012" = nota ke-12 dari supplier itu. Pembayaran yang dicatat
+   * di HP mengacu ke nomor ini, jadi harus stabil.
+   */
+  const notaNumber = (branch: Branch, supplier: SupplierKey, daysAgo: number) => {
+    const days = deliveryDays(supplier, branch)
+    const sequence = days.length - days.indexOf(daysAgo)
+    return `${BRANCH_CODE[branch]}-${SUPPLIER_CODE[supplier]}-${String(sequence).padStart(3, '0')}`
+  }
   const snap = (target: number, supplier: SupplierKey, branch: Branch) =>
     deliveryDays(supplier, branch).reduce((best, day) =>
       Math.abs(day - target) < Math.abs(best - target) ? day : best,
@@ -177,7 +187,7 @@ export function buildSimulatedData(now = new Date()): SimulatedBase {
         const unitPrice = roundTo(rawUnitPrice, rawUnitPrice >= 100000 ? 500 : 100)
         const date = dayISO(purchase.daysAgo)
         const invoiceKey = `${branch}|${purchase.supplier}|${purchase.daysAgo}`
-        const number = `${BRANCH_CODE[branch]}-${compact(date)}-${SUPPLIER_CODE[purchase.supplier]}`
+        const number = notaNumber(branch, purchase.supplier, purchase.daysAgo)
         const supplierName = SUPPLIERS[purchase.supplier]
 
         const invoice = invoiceMap.get(invoiceKey) ?? {
@@ -307,7 +317,7 @@ export function buildSimulatedData(now = new Date()): SimulatedBase {
 
   for (const invoice of [...invoiceMap.values()].sort((a, b) => b.daysAgo - a.daysAgo)) {
     const date = dayISO(invoice.daysAgo)
-    const number = `${BRANCH_CODE[invoice.branch]}-${compact(date)}-${SUPPLIER_CODE[invoice.supplier]}`
+    const number = notaNumber(invoice.branch, invoice.supplier, invoice.daysAgo)
     const random = seeded(hash(number))
     const total = invoice.items.reduce((sum, item) => sum + item.total, 0)
     const due = new Date(`${date}T12:00:00`)
@@ -364,7 +374,7 @@ export function buildSimulatedData(now = new Date()): SimulatedBase {
   for (const day of [...salesByDay.values()].sort((a, b) => a.daysAgo - b.daysAgo)) {
     const date = dayISO(day.daysAgo)
     const code = BRANCH_CODE[day.branch]
-    const random = seeded(hash(`${code}|${date}`))
+    const random = seeded(hash(`${code}|${day.daysAgo}`))
     const qris = roundTo(day.value * (0.35 + random() * 0.15), 500)
     const transfer = roundTo(day.value * (0.15 + random() * 0.15), 500)
     const entries = [
@@ -375,13 +385,13 @@ export function buildSimulatedData(now = new Date()): SimulatedBase {
       const accountId = `${code.toLowerCase()}-${entry.account}`
       incoming.set(accountId, (incoming.get(accountId) ?? 0) + entry.amount)
       income.push({
-        id: `${entry.method}-${code}-${compact(date)}`,
+        id: `${entry.method}-${code}-H${day.daysAgo}`,
         branch: day.branch,
         date,
         customer: entry.customer,
         method: entry.method,
         amount: entry.amount,
-        reference: `${entry.method.toUpperCase()}-${code}-${compact(date)}`,
+        reference: `${entry.method.toUpperCase()}-${code}-H${day.daysAgo}`,
         accountId,
         simulated: true,
       })

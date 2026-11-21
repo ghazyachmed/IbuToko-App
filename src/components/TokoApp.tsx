@@ -1240,7 +1240,8 @@ function CashBook() {
           id: payment.id,
           date: payment.date,
           title: invoice.supplier,
-          detail: `${payment.method} • ${invoice.number}`,
+          // Tanda hubung tak-terputus agar nomor nota tidak terpotong di HP kecil.
+          detail: `${payment.method} • ${invoice.number.replace(/-/g, '‑')}`,
           amount: payment.amount,
           type: 'out' as const,
           source: invoice.number,

@@ -77,5 +77,11 @@
         }
       ]
     }
+  ],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://ibu.urbacorp.biz.id/manifest.webmanifest"
+    }
   ]
 }

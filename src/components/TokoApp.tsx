@@ -1,4 +1,5 @@
 import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import kittyUrl from '@/assets/hello-kitty.png'
 import { composeData, entryBasePrice, type LocalRecords, loadLocalRecords, saveLocalRecords } from '@/lib/store'
 import {
@@ -80,12 +81,18 @@ const isStandalone = () =>
     (navigator as Navigator & { standalone?: boolean }).standalone === true)
 
 /*
- * Pasang aplikasi (PWA). Event "beforeinstallprompt" dari Chrome/Android ditangkap
- * sejak awal dan disimpan, agar tombol "Pasang Aplikasi" di mana pun bisa langsung
- * memunculkan dialog pasang. Kalau dialog belum tersedia, tampilkan langkah singkat.
+ * Pasang aplikasi (PWA).
+ * - Android/Chrome/Edge: event "beforeinstallprompt" ditangkap sejak awal, jadi
+ *   tombol "Pasang Aplikasi" di mana pun langsung membuka dialog pasang (1x ketuk).
+ * - Kalau dialog belum tersedia (Chrome belum siap, baru ditolak, atau bukan
+ *   Chrome), tampilkan langkah bergambar yang meniru tombol aslinya. Begitu Chrome
+ *   siap, tombol "Pasang sekarang" muncul di lembar itu.
+ * - iPhone/iPad: Apple tidak mengizinkan situs memasang sendiri, jadi selalu langkah.
+ * - Tombol disembunyikan kalau aplikasi sudah terpasang.
  */
 let deferredInstall: InstallEvent | null = null
 let installedNow = false
+let installedElsewhere = false
 const installListeners = new Set<() => void>()
 const emitInstall = () => installListeners.forEach((listener) => listener())
 if (typeof window !== 'undefined') {
@@ -99,6 +106,17 @@ if (typeof window !== 'undefined') {
     installedNow = true
     emitInstall()
   })
+  // Android Chrome: cek apakah aplikasi ini sudah terpasang (dibuka dari browser).
+  const nav = navigator as Navigator & { getInstalledRelatedApps?: () => Promise<unknown[]> }
+  nav
+    .getInstalledRelatedApps?.()
+    .then((apps) => {
+      if (apps.length) {
+        installedElsewhere = true
+        emitInstall()
+      }
+    })
+    .catch(() => undefined)
 }
 
 type InstallSheetKind = 'android' | 'android-webview' | 'ios' | 'desktop'
@@ -120,92 +138,241 @@ function useInstall() {
     }
   }, [])
   const standalone = isStandalone() || installedNow
+  async function promptNow(): Promise<boolean> {
+    const prompt = deferredInstall
+    if (!prompt) return false
+    await prompt.prompt()
+    const choice = await prompt.userChoice
+    deferredInstall = null
+    emitInstall()
+    if (choice.outcome === 'accepted') setSheet(null)
+    return choice.outcome === 'accepted'
+  }
   async function install(): Promise<boolean> {
     if (standalone) return true
-    const prompt = deferredInstall
-    if (prompt) {
-      await prompt.prompt()
-      const choice = await prompt.userChoice
-      deferredInstall = null
-      emitInstall()
-      return choice.outcome === 'accepted'
-    }
+    if (deferredInstall) return promptNow()
     setSheet(installPlatform())
     return false
   }
-  return { standalone, canPrompt: Boolean(deferredInstall), install, sheet, closeSheet: () => setSheet(null) }
+  return {
+    standalone,
+    installed: standalone || installedElsewhere,
+    canPrompt: Boolean(deferredInstall),
+    install,
+    promptNow,
+    sheet,
+    closeSheet: () => setSheet(null),
+  }
 }
 
-const INSTALL_STEPS: Record<InstallSheetKind, { title: string; steps: ReactNode[] }> = {
+/* Ikon yang meniru tombol aslinya di HP/komputer. */
+const ShareIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 9H6.5A1.5 1.5 0 0 0 5 10.5v8A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 17.5 9H16M12 14V3.5M8.5 7 12 3.5 15.5 7" />
+  </svg>
+)
+const PlusSquareIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="4" y="4" width="16" height="16" rx="3.5" />
+    <path d="M12 8.5v7M8.5 12h7" />
+  </svg>
+)
+const DotsIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="filled">
+    <circle cx="12" cy="5.5" r="1.9" />
+    <circle cx="12" cy="12" r="1.9" />
+    <circle cx="12" cy="18.5" r="1.9" />
+  </svg>
+)
+const PhoneDownIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+    <path d="M12 7.5v7m0 0-3-3m3 3 3-3" />
+  </svg>
+)
+const MonitorDownIcon = () => (
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M9 20h6M12 16v4M12 7v5m0 0-2.5-2.5M12 12l2.5-2.5" />
+  </svg>
+)
+
+type InstallStep = { text: ReactNode; picture: ReactNode; hint?: string }
+
+const INSTALL_STEPS: Record<InstallSheetKind, { title: string; steps: InstallStep[] }> = {
   android: {
-    title: 'Pasang di Android',
+    title: 'Pasang di HP Android',
     steps: [
-      <>
-        Ketuk <b>⋮</b> di kanan atas Chrome.
-      </>,
-      <>
-        Pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.
-      </>,
-      <>
-        Ketuk <b>Instal</b>.
-      </>,
+      {
+        text: 'Ketuk tombol titik tiga di kanan atas Chrome.',
+        picture: (
+          <span className="mock-bar">
+            <span className="mock-url">ibu.urbacorp.biz.id</span>
+            <span className="mock-icon tap">
+              <DotsIcon />
+            </span>
+          </span>
+        ),
+      },
+      {
+        text: 'Ketuk menu ini:',
+        picture: (
+          <span className="mock-menu">
+            <span className="mock-row tap">
+              <PhoneDownIcon />
+              Tambahkan ke layar utama
+            </span>
+          </span>
+        ),
+        hint: 'Di sebagian HP tulisannya "Instal aplikasi".',
+      },
+      {
+        text: 'Ketuk tombol Instal.',
+        picture: <span className="mock-button tap">Instal</span>,
+      },
     ],
   },
   'android-webview': {
     title: 'Buka di Chrome dulu',
     steps: [
-      <>
-        Ketuk <b>⋮</b> lalu pilih <b>Buka di Chrome</b>.
-      </>,
-      <>
-        Di Chrome, ketuk <b>Pasang Aplikasi</b> lagi.
-      </>,
+      {
+        text: 'Ketuk tombol titik tiga, lalu pilih:',
+        picture: (
+          <span className="mock-menu">
+            <span className="mock-row tap">Buka di Chrome</span>
+          </span>
+        ),
+      },
+      { text: 'Di Chrome, ketuk "Pasang Aplikasi" lagi.', picture: null },
     ],
   },
   ios: {
     title: 'Pasang di iPhone',
     steps: [
-      <>
-        Ketuk tombol <b>Bagikan</b> di Safari.
-      </>,
-      <>
-        Pilih <b>Tambah ke Layar Utama</b>.
-      </>,
-      <>
-        Ketuk <b>Tambah</b>.
-      </>,
+      {
+        text: 'Di Safari, ketuk tombol Bagikan.',
+        picture: (
+          <span className="mock-bar ios">
+            <span className="mock-icon tap ios">
+              <ShareIcon />
+            </span>
+          </span>
+        ),
+        hint: 'Ada di bawah layar. Kalau tidak terlihat, ketuk ••• dulu.',
+      },
+      {
+        text: 'Geser ke bawah, lalu ketuk:',
+        picture: (
+          <span className="mock-menu ios">
+            <span className="mock-row tap ios">
+              Tambah ke Layar Utama
+              <PlusSquareIcon />
+            </span>
+          </span>
+        ),
+      },
+      {
+        text: 'Ketuk Tambah di kanan atas.',
+        picture: <span className="mock-text-button tap">Tambah</span>,
+      },
     ],
   },
   desktop: {
     title: 'Pasang di komputer',
     steps: [
-      <>
-        Klik ikon <b>Pasang</b> di ujung kanan kolom alamat Chrome atau Edge.
-      </>,
-      <>
-        Klik <b>Instal</b>.
-      </>,
+      {
+        text: 'Klik ikon pasang di ujung kanan kolom alamat (Chrome atau Edge).',
+        picture: (
+          <span className="mock-bar">
+            <span className="mock-url">ibu.urbacorp.biz.id</span>
+            <span className="mock-icon tap">
+              <MonitorDownIcon />
+            </span>
+          </span>
+        ),
+      },
+      {
+        text: 'Klik tombol Instal.',
+        picture: <span className="mock-button tap">Instal</span>,
+      },
     ],
   },
 }
 
-function InstallSheet({ kind, onClose }: { kind: InstallSheetKind; onClose: () => void }) {
+function InstallSheet({
+  kind,
+  onClose,
+  canPrompt,
+  onPrompt,
+}: {
+  kind: InstallSheetKind
+  onClose: () => void
+  canPrompt: boolean
+  onPrompt: () => void
+}) {
   const content = INSTALL_STEPS[kind]
-  return (
+  // Android & komputer (Chrome/Edge) bisa pasang langsung: utamakan satu tombol.
+  // Langkah lewat menu hanya cadangan, dilipat, dan terbuka sendiri bila Chrome
+  // belum menawarkan pasang setelah beberapa detik.
+  const oneTap = kind === 'android' || kind === 'desktop'
+  const [waitedTooLong, setWaitedTooLong] = useState(false)
+  useEffect(() => {
+    if (!oneTap || canPrompt) return
+    const timer = window.setTimeout(() => setWaitedTooLong(true), 8000)
+    return () => window.clearTimeout(timer)
+  }, [oneTap, canPrompt])
+
+  const steps = (
+    <ol className="install-steps">
+      {content.steps.map((step, index) => (
+        <li key={index}>
+          <span className="step-number">{index + 1}</span>
+          <div>
+            <p>{step.text}</p>
+            {step.picture && <div className="step-picture">{step.picture}</div>}
+            {step.hint && <small>{step.hint}</small>}
+          </div>
+        </li>
+      ))}
+    </ol>
+  )
+
+  // Dirender di <body> agar tidak ikut gaya header/kartu tempat tombolnya berada.
+  return createPortal(
     <div className="backdrop" onClick={onClose}>
-      <section className="sheet" onClick={(e) => e.stopPropagation()}>
+      <section className="sheet install-sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={content.title}>
         <i />
-        <h2>{content.title}</h2>
-        <ol>
-          {content.steps.map((step, index) => (
-            <li key={index}>{step}</li>
-          ))}
-        </ol>
-        <button className="primary" onClick={onClose}>
-          Mengerti
-        </button>
+        {oneTap ? (
+          <>
+            <h2>Pasang Aplikasi</h2>
+            <p className="install-lead">
+              {canPrompt
+                ? 'Ketuk tombol di bawah, lalu pilih Instal.'
+                : 'Tunggu sebentar, tombolnya akan aktif sendiri.'}
+            </p>
+            <button className="primary install-now" onClick={onPrompt} disabled={!canPrompt}>
+              <DownloadIcon /> {canPrompt ? 'Pasang sekarang' : 'Menyiapkan…'}
+            </button>
+            <details className="install-other" open={waitedTooLong && !canPrompt}>
+              <summary>{waitedTooLong && !canPrompt ? 'Belum bisa? Pakai cara ini' : 'Cara lain'}</summary>
+              {steps}
+            </details>
+            <button className="secondary-close" onClick={onClose}>
+              Nanti saja
+            </button>
+          </>
+        ) : (
+          <>
+            <h2>{content.title}</h2>
+            {steps}
+            <button className="primary" onClick={onClose}>
+              Mengerti
+            </button>
+          </>
+        )}
       </section>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -217,22 +384,27 @@ function DownloadIcon() {
   )
 }
 
-/** Tombol pasang; tidak tampil kalau aplikasi sudah terpasang. */
-function InstallButton({ compact = false }: { compact?: boolean }) {
-  const { standalone, install, sheet, closeSheet } = useInstall()
-  if (standalone) return null
+/**
+ * Tombol pasang. "block" = tombol besar (Pilih Toko), "row" = baris tipis di bawah
+ * header Beranda. Tidak tampil kalau aplikasi sudah terpasang.
+ */
+function InstallButton({ variant = 'block' }: { variant?: 'block' | 'row' }) {
+  const { installed, canPrompt, install, promptNow, sheet, closeSheet } = useInstall()
+  if (installed) return null
   return (
     <>
       <button
         type="button"
-        className={compact ? 'install-icon' : 'install-button'}
+        className={variant === 'row' ? 'install-row' : 'install-button'}
         onClick={() => void install()}
-        aria-label="Pasang aplikasi"
       >
         <DownloadIcon />
-        {!compact && 'Pasang Aplikasi'}
+        <span>Pasang Aplikasi</span>
+        {variant === 'row' && <em>›</em>}
       </button>
-      {sheet && <InstallSheet kind={sheet} onClose={closeSheet} />}
+      {sheet && (
+        <InstallSheet kind={sheet} onClose={closeSheet} canPrompt={canPrompt} onPrompt={() => void promptNow()} />
+      )}
     </>
   )
 }
@@ -425,24 +597,13 @@ function Rays({ className }: { className?: string }) {
   )
 }
 
-/** Pojok kanan header: tombol pasang (kalau belum terpasang), selain itu hiasan hati. */
-function HeroCorner({ install }: { install: boolean }) {
-  const { standalone } = useInstall()
-  if (!install || standalone) return <Heart className="hero-heart" />
-  return (
-    <span className="hero-install">
-      <InstallButton compact />
-    </span>
-  )
-}
-
-function HomeHero({ install = false }: { install?: boolean }) {
+function HomeHero() {
   return (
     <header className="home-hero">
       <Rays className="hero-rays" />
       <StoreIcon className="hero-store" />
       <b>Toko Santri</b>
-      <HeroCorner install={install} />
+      <Heart className="hero-heart" />
       <svg className="hero-wave" viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true">
         <path d="M0 14C55 2 105 2 160 12s110 14 160 4 60-10 80-8V28H0Z" />
       </svg>
@@ -625,7 +786,7 @@ function Start() {
 
 function Welcome() {
   const navigate = useNavigate()
-  const { install, sheet, closeSheet } = useInstall()
+  const { install, promptNow, canPrompt, sheet, closeSheet } = useInstall()
 
   const next = () => {
     writeStorage(WELCOMED_KEY, 'yes')
@@ -673,6 +834,8 @@ function Welcome() {
       {sheet && (
         <InstallSheet
           kind={sheet}
+          canPrompt={canPrompt}
+          onPrompt={() => void promptNow().then((accepted) => accepted && next())}
           onClose={() => {
             closeSheet()
             next()
@@ -719,7 +882,8 @@ function Home() {
   const unpaid = invoices.filter((invoice) => invoice.branch === branch && invoice.status !== 'Lunas').length
   return (
     <main className="page home">
-      <HomeHero install />
+      <HomeHero />
+      <InstallButton variant="row" />
       <section className="store-switch">
         <div className="store-pill">
           <StoreIcon className="pill-store" />

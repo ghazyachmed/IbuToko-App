@@ -106,7 +106,7 @@ Semua data dibundel di aplikasi dan diberi tanda `simulated: true`.
 | Layar | Isi |
 |---|---|
 | **Pilih Toko** | Muncul pertama kali dibuka / setelah dipasang. Gading atau Palur. Ada tombol Pasang Aplikasi |
-| **Pasang Aplikasi** | Hanya di browser (bukan aplikasi terpasang). Android/Chrome: dialog pasang langsung. iPhone: langkah Bagikan → Tambah ke Layar Utama |
+| **Pasang Aplikasi** | Hanya di browser (bukan aplikasi terpasang). Android/Chrome: 1x ketuk langsung dialog pasang. Kalau dialog belum tersedia / iPhone: langkah bergambar meniru tombol asli. Juga ada baris "Pasang Aplikasi" di Beranda dan tombol di Pilih Toko (hilang bila sudah terpasang) |
 | **Beranda** | Satu layar: header pink, Ganti Toko, Hello Kitty + "Mau lihat apa, Bu?", kartu Buku Besar, Buku Uang, **Tanya & Catat** (kartu utama), pengingat nota belum lunas |
 | **Buku Besar** | Daftar **supplier** (urut nama) → daftar nota supplier → rincian nota. Tombol **Sudah Bayar per nota**. Tampil tanggal datang, nomor nota, barang (qty × harga), total, tanggal bayar |
 | **Buku Uang** | Per hari: uang masuk (QRIS/transfer) dan bayar supplier (tertaut ke nota). Ringkasan masuk/keluar bulan ini. Tidak ada daftar saldo bank |
@@ -337,6 +337,7 @@ Status: ✅ ada di v1 (simulasi) · 🟡 sebagian · 🔜 belum (Fase 2+)
 | 22 Nov 2026 | Huruf lebih besar dan ikut setelan HP; jawaban chat berbentuk kartu |
 | 22 Nov 2026 | Harga Barang tetap di Tanya & Catat. Chatbot: aturan → cache → server → AI |
 | 22 Nov 2026 | PRD dilengkapi dari catatan Ibu: kolom Buku Besar, daftar fitur F1–F21, pemetaan pertanyaan, lampiran catatan asli |
+| 22 Nov 2026 | Tombol pasang: baris "Pasang Aplikasi" di bawah header (bukan ikon). Android/komputer: 1x ketuk langsung dialog Chrome tanpa pop-up; kalau Chrome belum siap, pop-up hanya berisi tombol "Pasang sekarang" yang aktif sendiri, langkah lewat menu ⋮ dilipat dan baru terbuka bila setelah 8 detik belum bisa. iPhone tetap langkah bergambar (Apple tidak mengizinkan pasang langsung). Disembunyikan bila sudah terpasang |
 
 ---
 

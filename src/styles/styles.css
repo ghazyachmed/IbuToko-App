@@ -2867,3 +2867,283 @@ body {
 .saved .answer-cards {
   margin-top: 8px;
 }
+
+/* ===== Pasang aplikasi: baris di Beranda ===== */
+.install-row {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 1.5px solid #f0b9d0;
+  border-radius: 99px;
+  background: #fff;
+  color: var(--berry);
+  font-family: var(--font-round);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+}
+.install-row svg,
+.install-now svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.install-row span {
+  flex: 1;
+}
+.install-row em {
+  font-size: 1.4rem;
+  font-style: normal;
+  line-height: 1;
+}
+@media (max-width: 759px) and (max-height: 700px) {
+  .install-row {
+    min-height: 38px;
+    padding: 4px 14px;
+    font-size: 0.95rem;
+  }
+}
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 560px) {
+  .page.home .install-row {
+    grid-column: 1 / -1;
+    min-height: 36px;
+  }
+  .page.home:not(.branch-home) {
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  }
+  .home .greeting {
+    grid-row: 4 / 6;
+  }
+  .home .features {
+    grid-row: 4;
+  }
+  .home .reminder {
+    grid-row: 5;
+  }
+}
+
+/* ===== Lembar langkah pasang ===== */
+.install-sheet h2 {
+  color: var(--plum);
+  font-family: var(--font-round);
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.install-now {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+.install-steps {
+  display: grid;
+  gap: 16px;
+  margin: 18px 0 22px;
+  padding: 0;
+  list-style: none;
+}
+.install-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.step-number {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: #ffe2ee;
+  color: var(--berry);
+  font-family: var(--font-round);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.install-steps li > div {
+  min-width: 0;
+  flex: 1;
+}
+.install-steps p {
+  color: var(--ink);
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+.install-steps small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.step-picture {
+  margin-top: 8px;
+}
+
+/* Gambar tiruan tombol asli */
+.mock-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 14px;
+  background: #f1f3f4;
+}
+.mock-bar.ios {
+  justify-content: center;
+  padding: 6px;
+  background: #f2f2f7;
+}
+.mock-url {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: #5f6368;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mock-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  color: #3c4043;
+}
+.mock-icon.ios {
+  color: #007aff;
+}
+.mock-icon svg,
+.mock-row svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mock-icon svg.filled {
+  fill: currentColor;
+  stroke: none;
+}
+.mock-menu {
+  display: block;
+  padding: 4px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 16px #0000001f;
+}
+.mock-menu.ios {
+  background: #f2f2f7;
+  box-shadow: none;
+}
+.mock-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #202124;
+  font-size: 1rem;
+}
+.mock-row.ios {
+  justify-content: space-between;
+  background: #fff;
+  color: #000;
+}
+.mock-button {
+  display: inline-block;
+  padding: 8px 22px;
+  border-radius: 99px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.mock-text-button {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 10px;
+  color: #007aff;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+/* Lingkaran pink = bagian yang perlu diketuk */
+.tap {
+  outline: 3px solid #f06ba3;
+  outline-offset: 2px;
+  animation: tap-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tap-pulse {
+  0%,
+  100% {
+    outline-color: #f06ba3;
+  }
+  50% {
+    outline-color: #f06ba355;
+  }
+}
+.secondary-close {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--berry);
+  font-weight: 800;
+}
+/* HP kecil (tinggi ≤ 620px): sedikit lebih ringkas supaya baris Pasang tetap muat */
+@media (max-width: 599px) and (max-height: 620px) {
+  .home .greeting {
+    height: 124px;
+  }
+  .home .kitten {
+    width: 118px;
+    height: 118px;
+  }
+  .home .feature > span,
+  .home .feature .menu-illustration {
+    width: 64px;
+    height: 44px;
+  }
+  .page.home:not(.branch-home) {
+    gap: 7px;
+  }
+}
+
+/* Pasang 1x ketuk (Android / komputer) */
+.install-lead {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.4;
+}
+.install-now:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.install-other {
+  margin: 16px 0 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+}
+.install-other summary {
+  color: var(--berry);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.install-other .install-steps {
+  margin: 14px 0 4px;
+}

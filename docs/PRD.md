@@ -178,6 +178,7 @@ tidak diunggah. Ini batasan v1 yang diselesaikan oleh database di Fase 2.
 - **Jawaban chat:** kalimat pembuka pendek + **kartu** (judul barang/supplier,
   baris "label — nilai") + catatan kecil. Warna: hijau = aman/termurah,
   oranye = perhatian, merah = rugi/habis.
+- **Micro-interaction:** ringan dan cepat, CSS saja (transform/opacity, 0,12–0,3 detik): tombol/kartu mengecil saat ditekan, halaman & pop-up muncul halus, pesan chat masuk berurutan, status "Lunas" pop, getar singkat saat simpan (Android). Mati otomatis bila HP disetel "kurangi gerakan". Jangan pakai library animasi.
 - **Tampilan:** tema pink, karakter Hello Kitty yang sudah terpasang (tidak
   digambar ulang, hanya diberi hiasan di sekitarnya), animasi lembut.
 - **Responsif:** HP tegak (Beranda pas satu layar), HP tidur (Kitty kiri, menu

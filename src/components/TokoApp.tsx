@@ -80,6 +80,15 @@ const isStandalone = () =>
   (window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true)
 
+/** Getar sangat singkat saat berhasil menyimpan (Android). iPhone mengabaikannya. */
+const haptic = () => {
+  try {
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) navigator.vibrate?.(12)
+  } catch {
+    /* tidak didukung */
+  }
+}
+
 /*
  * Pasang aplikasi (PWA).
  * - Android/Chrome/Edge: event "beforeinstallprompt" ditangkap sejak awal, jadi
@@ -1090,6 +1099,7 @@ function SupplierNotes() {
           remaining={paying.remainingBalance}
           onClose={() => setPaying(null)}
           onSaved={() => {
+            haptic()
             setToast(`Nota ${paying.number} dicatat sudah bayar.`)
             setPaying(null)
           }}
@@ -1125,7 +1135,9 @@ function InvoiceCard({
       {invoice.items.length > 1 && <p className="invoice-more">+{invoice.items.length - 1} barang lain</p>}
       <footer>
         <b>{rupiah(invoice.total)}</b>
-        <em className={`pay-state ${invoice.status.replace(' ', '-').toLowerCase()}`}>{paidText(invoice)}</em>
+        <em key={invoice.status} className={`pay-state ${invoice.status.replace(' ', '-').toLowerCase()}`}>
+          {paidText(invoice)}
+        </em>
       </footer>
       {invoice.status !== 'Lunas' && (
         <button
@@ -1164,7 +1176,7 @@ function InvoiceDetail() {
       />
       <section>
         <div className="detail-hero">
-          <span className={`status ${invoice.status.replace(' ', '-').toLowerCase()}`}>
+          <span key={invoice.status} className={`status ${invoice.status.replace(' ', '-').toLowerCase()}`}>
             {invoice.status}
           </span>
           <p>
@@ -1239,6 +1251,7 @@ function InvoiceDetail() {
           onClose={() => setShowPayment(false)}
           onSaved={() => {
             setShowPayment(false)
+            haptic()
             setToast('Pembayaran simulasi tersimpan di perangkat ini dan muncul di Buku Uang.')
           }}
         />
@@ -1575,12 +1588,17 @@ function AskData() {
   }
 
   function decide(id: number, save: boolean) {
+    const target = chat.find((item) => item.id === id)
+    if (!target || target.role !== 'bot' || !target.answer.action || target.state) return
+    // Simpan sekali saja di luar setState (setState bisa dijalankan dua kali di mode dev).
+    const result = save ? confirmAction(target.answer.action, acosys) : undefined
+    if (save) haptic()
     setChat((items) =>
-      items.map((item) => {
-        if (item.id !== id || item.role !== 'bot' || !item.answer.action) return item
-        if (!save) return { ...item, state: 'cancelled' }
-        return { ...item, state: 'saved', result: confirmAction(item.answer.action, acosys) }
-      }),
+      items.map((item) =>
+        item.id === id && item.role === 'bot'
+          ? { ...item, state: save ? 'saved' : 'cancelled', result }
+          : item,
+      ),
     )
   }
 

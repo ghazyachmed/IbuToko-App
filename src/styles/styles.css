@@ -3147,3 +3147,274 @@ body {
 .install-other .install-steps {
   margin: 14px 0 4px;
 }
+
+/* ===== Micro-interaction (ringan: CSS saja, hanya transform/opacity, 0.12–0.26 detik) ===== */
+
+/* Tekan: tombol & kartu sedikit mengecil saat disentuh, terasa "ditekan". */
+button,
+a,
+.feature,
+.supplier-card,
+.invoice-card,
+.branch-card,
+.reminder,
+.install-row {
+  touch-action: manipulation;
+}
+.primary,
+.secondary-close,
+.confirm-yes,
+.confirm-no,
+.pay-button,
+.install-row,
+.install-button,
+.store-switch button,
+.filters button,
+.segment button,
+.suggestions button,
+.acosys-choice button,
+.ask-form button,
+.inner-head > a,
+.update-bar button {
+  transition:
+    transform 0.12s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+.feature,
+.supplier-card,
+.invoice-card,
+.branch-card,
+.reminder,
+.sources a {
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.primary:active:not(:disabled),
+.secondary-close:active,
+.confirm-yes:active,
+.confirm-no:active,
+.pay-button:active,
+.install-row:active,
+.install-button:active,
+.store-switch button:active,
+.filters button:active,
+.segment button:active,
+.suggestions button:active,
+.acosys-choice button:active,
+.ask-form button:active,
+.inner-head > a:active,
+.update-bar button:active {
+  transform: scale(0.96);
+}
+.feature:active,
+.supplier-card:active,
+.invoice-card:active,
+.branch-card:active,
+.reminder:active {
+  transform: scale(0.98);
+  box-shadow: 0 4px 12px #9f2a5f10;
+}
+.sources a:active {
+  transform: translateX(3px);
+}
+
+/* Pindah halaman: muncul halus (geser sedikit + memudar). */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.page.inner,
+.welcome-card,
+.branch-content {
+  animation: page-in 0.22s ease-out both;
+}
+.page.home {
+  animation: fade-in 0.18s ease-out both;
+}
+
+/* Kartu menu Beranda muncul berurutan sekali saat dibuka. */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.home .features > .feature {
+  animation: pop-in 0.26s ease-out both;
+}
+.home .features > .feature:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.home .features > .feature:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.home .reminder {
+  animation: pop-in 0.26s 0.12s ease-out both;
+}
+
+/* Lonceng pengingat bergoyang sekali. */
+@keyframes bell-ring {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-12deg);
+  }
+  60% {
+    transform: rotate(8deg);
+  }
+  80% {
+    transform: rotate(-4deg);
+  }
+}
+.home .reminder > span svg {
+  transform-origin: 50% 10%;
+  animation: bell-ring 0.7s 0.45s ease-in-out 1 both;
+}
+
+/* Daftar supplier & nota muncul berurutan (hanya 6 pertama, sisanya langsung). */
+.supplier-list > *,
+.invoice-list > * {
+  animation: page-in 0.22s ease-out both;
+}
+.supplier-list > :nth-child(2),
+.invoice-list > :nth-child(2) {
+  animation-delay: 0.03s;
+}
+.supplier-list > :nth-child(3),
+.invoice-list > :nth-child(3) {
+  animation-delay: 0.06s;
+}
+.supplier-list > :nth-child(4),
+.invoice-list > :nth-child(4) {
+  animation-delay: 0.09s;
+}
+.supplier-list > :nth-child(5),
+.invoice-list > :nth-child(5) {
+  animation-delay: 0.12s;
+}
+.supplier-list > :nth-child(n + 6),
+.invoice-list > :nth-child(n + 6) {
+  animation-delay: 0.14s;
+}
+
+/* Pop-up (pembayaran, langkah pasang): latar memudar, lembar naik dari bawah. */
+@keyframes sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.backdrop {
+  animation: fade-in 0.18s ease-out both;
+}
+.sheet,
+.payment-modal {
+  animation: sheet-up 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Chat: pesan & kartu jawaban muncul halus. */
+@keyframes msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.chat-user {
+  transform-origin: 100% 100%;
+  animation: msg-in 0.18s ease-out both;
+}
+.chat .answer {
+  animation: msg-in 0.22s 0.06s ease-out both;
+}
+.answer-card {
+  animation: msg-in 0.22s 0.1s ease-out both;
+}
+.answer-card + .answer-card {
+  animation-delay: 0.16s;
+}
+.saved {
+  animation: msg-in 0.22s ease-out both;
+}
+
+/* Status berubah (mis. Belum dibayar → Lunas): "pop" kecil. */
+@keyframes status-pop {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  60% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.pay-state,
+.detail-hero .status {
+  display: inline-block;
+  animation: status-pop 0.3s ease-out both;
+}
+
+/* Toast & bar versi baru masuk dari bawah. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+.toast,
+.update-bar {
+  animation: rise-in 0.22s ease-out both;
+}
+
+/* Hormati setelan "kurangi gerakan" di HP: matikan semua animasi & transisi. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

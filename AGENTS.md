@@ -4,6 +4,10 @@ Mobile-first PWA for the Gading and Palur shops. React 19 + Vite 8 + TypeScript,
 Tailwind CSS v4 (via `@tailwindcss/vite`) plus the hand-written styles in
 `src/styles/styles.css`. Static site deployed to Cloudflare Pages from `main`.
 
+**Read `docs/PRD.md` first** for the product requirements, the owner's glossary
+and workflow, business rules, and the Phase 2 plan (database, login, AI chatbot,
+OCR, ACOSYS). Update its decision log when a product decision changes.
+
 ## Commands
 
 - `pnpm install`
@@ -45,6 +49,14 @@ Toolchain: Node 22 (`.node-version`, `.nvmrc`), pnpm 10 (`packageManager`).
 - Simulated dates are relative to today, but note numbers (e.g. `GDG-KJ-012`)
   are stable, so on-device payments keep pointing at the right note. Never build
   IDs or random seeds from dates.
+- Font sizes are in `rem` so they follow the phone/browser text-size setting
+  (iOS Dynamic Type via `-apple-system-body`). Never add `font-size` in `px`;
+  keep body text ≥ 1rem and small notes ≥ 0.875rem (the owner reads on a phone).
+- Tanya & Catat answers are short intro lines + `cards` (title + label/value
+  rows) + small `notes`. No long sentences packed with numbers.
+- Tanya & Catat is rule-based and runs on the device (no LLM, no database call).
+  Answers are cached per question + day + data version in `AskData`. If a
+  server/LLM is ever added, keep the order: rules → cache → server.
 - Layout must fit every size: phone portrait (Home = one screen), phone
   landscape (Kitty left, menu right), tablet portrait (2×2 menu), desktop
   (3 cards in a row, full-width pink header).

@@ -1,7 +1,15 @@
 import { createContext, type FormEvent, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import kittyUrl from '@/assets/hello-kitty.png'
 import { composeData, entryBasePrice, type LocalRecords, loadLocalRecords, saveLocalRecords } from '@/lib/store'
-import { type Answer, answerQuestion, type PendingAction, priceAnalysis, sellAnalysis } from '@/lib/tanya-data'
+import {
+  type Answer,
+  answerQuestion,
+  type Card,
+  type PendingAction,
+  priceAnalysis,
+  type SavedResult,
+  sellAnalysis,
+} from '@/lib/tanya-data'
 import {
   type AccountView,
   type Branch,
@@ -42,7 +50,7 @@ type StoreContext = {
   products: ProductView[]
   allowedBranches: Branch[]
   recordPayment: (payment: NewPayment) => { ok: boolean; error?: string }
-  confirmAction: (action: PendingAction, acosysRecorded: boolean) => string[]
+  confirmAction: (action: PendingAction, acosysRecorded: boolean) => SavedResult
 }
 
 const TokoContext = createContext<StoreContext | null>(null)
@@ -529,12 +537,13 @@ function StoreRoot({ children }: { children: ReactNode }) {
     return { ok: true }
   }
 
-  function confirmAction(action: PendingAction, acosysRecorded: boolean): string[] {
+  function confirmAction(action: PendingAction, acosysRecorded: boolean): SavedResult {
+    const fail = (text: string): SavedResult => ({ lines: [text], cards: [] })
     const product = data.products.find((item) => item.branch === action.branch && item.key === action.productKey)
-    if (!product) return ['Barang tidak ditemukan.']
+    if (!product) return fail('Barang tidak ditemukan.')
     if (action.kind === 'sell') {
       if (product.latestCost && action.sellPrice < product.latestCost.basePrice)
-        return ['Tidak bisa disimpan: harga jual lebih murah dari harga beli.']
+        return fail('Tidak bisa disimpan: harga jual lebih murah dari harga beli.')
       const next = commit({
         ...local,
         sells: [
@@ -551,10 +560,10 @@ function StoreRoot({ children }: { children: ReactNode }) {
         ],
       })
       const updated = next.products.find((item) => item.id === product.id)
-      return updated ? sellAnalysis(updated) : []
+      return updated ? sellAnalysis(updated) : fail('Tersimpan ✓')
     }
     if (!(action.unitPrice > 0) || entryBasePrice(product, action.unit, action.unitPrice, action.shipping) <= 0)
-      return ['Harga tidak valid.']
+      return fail('Harga tidak valid.')
     const id = `INFO-${Date.now()}`
     const next = commit({
       ...local,
@@ -575,7 +584,7 @@ function StoreRoot({ children }: { children: ReactNode }) {
       ],
     })
     const updated = next.products.find((item) => item.id === product.id)
-    return updated ? priceAnalysis(updated, id) : []
+    return updated ? priceAnalysis(updated, id) : fail('Tersimpan ✓')
   }
 
   return (
@@ -1302,9 +1311,32 @@ function CashBook() {
   )
 }
 
+/** Kartu jawaban: judul + baris "label — nilai" yang mudah dibaca. */
+function AnswerCards({ cards }: { cards?: Card[] }) {
+  if (!cards?.length) return null
+  return (
+    <div className="answer-cards">
+      {cards.map((card, index) => (
+        <section className="answer-card" key={`${card.title}-${index}`}>
+          <h3>{card.title}</h3>
+          {card.sub && <small>{card.sub}</small>}
+          <dl>
+            {card.rows.map((item, rowIndex) => (
+              <div key={rowIndex} className={item.tone ?? ''}>
+                <dt>{item.label}</dt>
+                <dd>{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 type ChatItem =
   | { id: number; role: 'user'; text: string }
-  | { id: number; role: 'bot'; answer: Answer; state?: 'saved' | 'cancelled'; result?: string[] }
+  | { id: number; role: 'bot'; answer: Answer; state?: 'saved' | 'cancelled'; result?: SavedResult }
 
 const EXAMPLES = [
   'Uang ada berapa?',
@@ -1333,9 +1365,24 @@ function AskData() {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [chat])
 
-  function ask(question: string) {
-    const text = question.trim()
-    if (!text) return
+  /*
+   * Cache jawaban: pertanyaan yang sama (huruf besar/kecil, spasi, tanda tanya
+   * diabaikan) tidak dihitung ulang selama data belum berubah dan masih hari
+   * yang sama. Jawaban dibuat oleh aturan (rule-based) di HP: tanpa AI, tanpa
+   * database, tanpa internet. Kalau nanti ada database/AI, urutannya tetap:
+   * aturan → cache → baru panggil server.
+   */
+  const cache = useRef(new Map<string, Answer>())
+  const cacheData = useRef<unknown[]>([])
+  function cachedAnswer(text: string) {
+    const deps = [invoices, payments, customerIncome, balances, products]
+    if (deps.some((dep, index) => dep !== cacheData.current[index])) {
+      cache.current.clear()
+      cacheData.current = deps
+    }
+    const key = `${todayISO()}|${branch}|${text.toLowerCase().replace(/[?!.,]+/g, ' ').replace(/\s+/g, ' ').trim()}`
+    const hit = cache.current.get(key)
+    if (hit) return hit
     const answer = answerQuestion(text, branch ?? 'Gading', {
       invoices,
       payments,
@@ -1343,6 +1390,15 @@ function AskData() {
       accounts: balances,
       products,
     })
+    // Pratinjau "Simpan?" tidak di-cache: tiap kali harus dikonfirmasi ulang.
+    if (!answer.action) cache.current.set(key, answer)
+    return answer
+  }
+
+  function ask(question: string) {
+    const text = question.trim()
+    if (!text) return
+    const answer = cachedAnswer(text)
     setChat((items) => [
       ...items.map((item) =>
         item.role === 'bot' && item.answer.action && !item.state ? { ...item, state: 'cancelled' as const } : item,
@@ -1395,6 +1451,12 @@ function AskData() {
                 {item.answer.lines.map((line, index) => (
                   <p key={index}>{line}</p>
                 ))}
+                <AnswerCards cards={item.answer.cards} />
+                {item.answer.notes?.map((note, index) => (
+                  <p className="answer-note" key={index}>
+                    {note}
+                  </p>
+                ))}
                 {item.answer.action && !item.state && (
                   <div className="confirm">
                     <AcosysChoice value={acosys} onChange={setAcosys} />
@@ -1411,9 +1473,10 @@ function AskData() {
                 {item.state === 'cancelled' && item.answer.action && <p className="muted">Tidak disimpan.</p>}
                 {item.state === 'saved' && (
                   <div className="saved">
-                    {item.result?.map((line, index) => (
+                    {item.result?.lines.map((line, index) => (
                       <p key={index}>{line}</p>
                     ))}
+                    <AnswerCards cards={item.result?.cards} />
                   </div>
                 )}
                 {item.answer.sources.length > 0 && (

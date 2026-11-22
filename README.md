@@ -5,6 +5,9 @@ dan Tanya & Catat (tanya + catat harga baru). Semua angka keuangan dan stok adal
 **data simulasi**; nama, kategori, satuan, dan harga jual eceran barang mengacu ke
 katalog Toko Santri Nonongan (bukan cabang Gading/Palur).
 
+Kebutuhan produk, aturan bisnis, dan rencana database + AI chatbot ada di
+**[docs/PRD.md](docs/PRD.md)**.
+
 ## Menjalankan lokal
 
 ```bash

@@ -31,12 +31,14 @@ export const applySynonyms = (value: string) =>
 
 /**
  * Pecah teks menjadi token pencarian (huruf kecil, tanpa tanda baca).
- * Angka dan huruf yang menempel dipisah: "9mm" → "9 mm", "L20" → "l 20".
+ * Satuan yang menempel pada angka dipisah: "9mm" → "9 mm", "2.5kg" → "2.5 kg",
+ * "70x200" → "70 x 200". Kode barang tetap utuh: "L20", "KW1", "D300" tidak
+ * dipecah, supaya "Ban L20" tidak ikut cocok dengan "Ban L25 F 20".
  */
 export const searchTokens = (value: string) =>
   applySynonyms(value)
-    .replace(/(\d)([a-z])/g, '$1 $2')
-    .replace(/([a-z])(\d)/g, '$1 $2')
+    .replace(/(\d)x(?=\d)/g, '$1 x ')
+    .replace(/(\d)(mm|cm|m|kg|gr|g|ml|y|lbr|pcs)\b/g, '$1 $2')
     .replace(/[^a-z0-9/.,\s-]/g, ' ')
     .replace(/[,]/g, ' ')
     .split(/[\s]+/)

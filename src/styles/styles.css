@@ -88,7 +88,7 @@
 }
 .eyebrow {
   color: #b43a70;
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.18em;
 }
@@ -120,7 +120,7 @@
   border-radius: 14px;
   background: #57203c;
   color: white;
-  font-size: 13px;
+  font-size: 0.9375rem;
   box-shadow: 0 10px 30px #57203c40;
 }
 
@@ -167,7 +167,7 @@
 .welcome h1,
 .branch-content h1 {
   margin-top: 10px;
-  font-size: clamp(35px, 10vw, 49px);
+  font-size: clamp(2.1875rem, 10vw, 3.0625rem);
   font-weight: 950;
   line-height: 1.05;
   letter-spacing: -0.045em;
@@ -247,7 +247,7 @@
   gap: 5px;
   margin-top: 10px;
   color: #9b7f8c;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .privacy svg {
   width: 13px;
@@ -281,7 +281,7 @@
   background: #ead7df;
 }
 .sheet h2 {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 950;
 }
 .sheet ol {
@@ -351,7 +351,7 @@
   border-radius: 18px;
   background: #ffe0ed;
   color: var(--berry);
-  font-size: 21px;
+  font-size: 1.3125rem;
   font-weight: 950;
 }
 .branch-card div {
@@ -362,7 +362,7 @@
   display: block;
 }
 .branch-card b {
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 .branch-card small {
   margin-top: 4px;
@@ -370,7 +370,7 @@
 }
 .branch-card em {
   color: #c9789b;
-  font-size: 30px;
+  font-size: 1.875rem;
 }
 .branch-note {
   display: flex;
@@ -378,7 +378,7 @@
   justify-content: center;
   gap: 6px;
   color: #9c8390;
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .branch-note svg {
   width: 14px;
@@ -404,7 +404,7 @@
   border-radius: 0 0 25px 25px;
   background: linear-gradient(135deg, #dc3b80, #ef5598);
   color: white;
-  font-size: clamp(25px, 8vw, 36px);
+  font-size: clamp(1.5625rem, 8vw, 2.25rem);
   font-weight: 950;
   box-shadow: 0 12px 30px #b52d6826;
 }
@@ -428,7 +428,7 @@
   box-shadow: 0 8px 22px #a8255e0d;
 }
 .store-switch h1 {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 950;
 }
 .store-switch button {
@@ -437,7 +437,7 @@
   border-radius: 99px;
   background: white;
   color: var(--berry);
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 900;
 }
 .greeting {
@@ -484,7 +484,7 @@
   display: grid;
   height: 100%;
   place-items: center;
-  font-size: clamp(21px, 5.8vw, 30px);
+  font-size: clamp(1.3125rem, 5.8vw, 1.875rem);
   font-weight: 950;
   line-height: 1.06;
   letter-spacing: -0.045em;
@@ -625,7 +625,7 @@
 .feature b {
   display: block;
   margin-top: 2px;
-  font-size: clamp(15px, 4.2vw, 19px);
+  font-size: clamp(1rem, 4.2vw, 1.1875rem);
   font-weight: 950;
 }
 .reminder {
@@ -660,11 +660,11 @@
   flex: 1;
 }
 .reminder b {
-  font-size: clamp(15px, 4.2vw, 19px);
+  font-size: clamp(1rem, 4.2vw, 1.1875rem);
 }
 .reminder em {
   color: #d66e9b;
-  font-size: 28px;
+  font-size: 1.75rem;
 }
 
 /* Shared inner screens */
@@ -684,16 +684,16 @@
   border-radius: 15px;
   background: white;
   color: var(--berry);
-  font-size: 34px;
+  font-size: 2.125rem;
   line-height: 1;
   text-decoration: none;
 }
 .inner-head small {
   color: #a17d8e;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .inner-head h1 {
-  font-size: 25px;
+  font-size: 1.5625rem;
   font-weight: 950;
   letter-spacing: -0.025em;
 }
@@ -715,11 +715,11 @@
 }
 .summary small {
   color: #9b7183;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .summary b {
   margin-top: 5px;
-  font-size: clamp(16px, 5vw, 22px);
+  font-size: clamp(1rem, 5vw, 1.375rem);
 }
 .search {
   display: flex;
@@ -733,7 +733,7 @@
 }
 .search span {
   color: #bf7998;
-  font-size: 25px;
+  font-size: 1.5625rem;
 }
 .search input {
   width: 100%;
@@ -760,7 +760,7 @@
   border-radius: 99px;
   background: white;
   color: #8f6d7c;
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .filters button.active,
@@ -789,13 +789,13 @@
 }
 .invoice-top > small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .status {
   display: inline-flex;
   padding: 6px 9px;
   border-radius: 99px;
-  font-size: 10px;
+  font-size: 0.8438rem;
   font-weight: 900;
 }
 .status.belum-bayar {
@@ -812,12 +812,12 @@
 }
 .invoice-card h2 {
   margin-top: 13px;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 950;
 }
 .invoice-card > p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .invoice-products {
   display: flex;
@@ -830,7 +830,7 @@
   border-radius: 8px;
   background: #fff4f8;
   color: #896173;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .invoice-products b {
   color: #6e314d;
@@ -849,14 +849,14 @@
 }
 .invoice-card footer small {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .invoice-card footer b {
   margin-top: 2px;
 }
 .invoice-card footer button {
   color: var(--berry);
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .empty {
@@ -872,7 +872,7 @@
 }
 .empty p {
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 
 /* Invoice detail and payment */
@@ -885,11 +885,11 @@
 .detail-hero > p {
   margin-top: 12px;
   color: #f6cadd;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .detail-hero > h2 {
   margin-top: 5px;
-  font-size: 31px;
+  font-size: 1.9375rem;
   font-weight: 950;
 }
 .detail-hero > div {
@@ -902,13 +902,13 @@
 }
 .detail-hero > div span {
   color: #f6cadd;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .detail-hero > div b {
   display: block;
   margin-top: 3px;
   color: white;
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 .detail-block {
   margin-top: 14px;
@@ -919,7 +919,7 @@
 }
 .detail-block h3 {
   margin-bottom: 9px;
-  font-size: 14px;
+  font-size: 0.9688rem;
   font-weight: 950;
 }
 .item-row,
@@ -946,16 +946,16 @@
 }
 .item-row b,
 .payment-row b {
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .item-row small,
 .payment-row small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .item-row strong {
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .payment-row > span {
   display: grid;
@@ -971,7 +971,7 @@
   border-radius: 8px;
   background: #ffeadc;
   color: #9c5d22;
-  font-size: 8px;
+  font-size: 0.8125rem;
   font-weight: 900;
 }
 .payment-row em.done {
@@ -980,7 +980,7 @@
 }
 .muted {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .sticky-action {
   margin-top: 15px;
@@ -1004,18 +1004,18 @@
 }
 .modal-head small {
   color: #bd4c7c;
-  font-size: 9px;
+  font-size: 0.8125rem;
   font-weight: 900;
   letter-spacing: 0.12em;
 }
 .modal-head h2 {
   margin-top: 4px;
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 950;
 }
 .modal-head p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .modal-head > button {
   width: 36px;
@@ -1023,13 +1023,13 @@
   border-radius: 50%;
   background: #fff0f6;
   color: var(--berry);
-  font-size: 24px;
+  font-size: 1.5rem;
 }
 .payment-modal > label {
   display: block;
   margin-top: 13px;
   color: #725165;
-  font-size: 11px;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .payment-modal input:not([type='checkbox']),
@@ -1091,13 +1091,13 @@
 .check small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 .form-error {
   margin-top: 11px;
   color: var(--red);
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .payment-modal .primary {
   margin-top: 16px;
@@ -1121,7 +1121,7 @@
 }
 .balance b {
   margin-top: 5px;
-  font-size: 31px;
+  font-size: 1.9375rem;
 }
 .balance span {
   width: fit-content;
@@ -1129,7 +1129,7 @@
   padding: 6px 9px;
   border-radius: 9px;
   background: #ffffff20;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .segment {
   display: grid;
@@ -1175,24 +1175,24 @@
 }
 .row b {
   overflow: hidden;
-  font-size: 12px;
+  font-size: 0.9062rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .row small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .row a {
   display: inline-block;
   margin-top: 4px;
   color: var(--berry);
-  font-size: 9px;
+  font-size: 0.8125rem;
   font-weight: 900;
 }
 .row > strong {
-  font-size: 11px;
+  font-size: 0.875rem;
   white-space: nowrap;
 }
 .money {
@@ -1202,7 +1202,7 @@
   flex: none;
   place-items: center;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 900;
 }
 .money.in {
@@ -1241,10 +1241,10 @@
 .balance-list small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .balance-list strong {
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 .info-note {
   margin-top: 13px;
@@ -1252,7 +1252,7 @@
   border-radius: 12px;
   background: #fff0f6;
   color: #8f6578;
-  font-size: 10px;
+  font-size: 0.8438rem;
   line-height: 1.5;
 }
 
@@ -1283,7 +1283,7 @@
   border-radius: 14px;
   background: #ffe3ee;
   color: var(--pink);
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 .product-card button > span {
   min-width: 0;
@@ -1297,36 +1297,36 @@
 }
 .product-card button span small {
   color: #a77e90;
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .product-card button span b {
   margin-top: 2px;
   overflow: hidden;
-  font-size: 12px;
+  font-size: 0.9062rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .product-card button span em {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .product-card button > strong {
   color: var(--berry);
-  font-size: 12px;
+  font-size: 0.9062rem;
   text-align: right;
 }
 .product-card button > strong small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 0.8125rem;
   font-weight: 500;
 }
 .cost-warning {
   padding: 9px 13px;
   background: #fff0de;
   color: #96601f;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .price-history {
   padding: 14px;
@@ -1340,14 +1340,14 @@
   padding: 10px;
   border-radius: 11px;
   background: white;
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .conversion span {
   color: var(--muted);
 }
 .price-history h3 {
   margin: 14px 0 5px;
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .price-history > div:not(.conversion) {
   display: flex;
@@ -1375,16 +1375,16 @@
   display: block;
 }
 .price-history b {
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .price-history small {
   color: var(--muted);
-  font-size: 8px;
+  font-size: 0.8125rem;
 }
 .price-history em {
   padding: 4px 6px;
   border-radius: 7px;
-  font-size: 8px;
+  font-size: 0.8125rem;
   font-weight: 900;
 }
 .price-history em.up {
@@ -1425,13 +1425,13 @@
 }
 .ask-intro h2 {
   margin-top: 12px;
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 950;
 }
 .ask-intro p {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.875rem;
 }
 .suggestions {
   display: flex;
@@ -1445,7 +1445,7 @@
   border-radius: 99px;
   background: white;
   color: #88536b;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .answer {
   margin-top: 15px;
@@ -1457,14 +1457,14 @@
 }
 .answer > small {
   color: #ba4b7b;
-  font-size: 8px;
+  font-size: 0.8125rem;
   font-weight: 950;
   letter-spacing: 0.12em;
 }
 .answer > p {
   margin-top: 6px;
   line-height: 1.55;
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 .sources {
   margin-top: 14px;
@@ -1474,7 +1474,7 @@
 .sources > b {
   display: block;
   margin-bottom: 5px;
-  font-size: 10px;
+  font-size: 0.8438rem;
 }
 .sources a {
   display: flex;
@@ -1482,7 +1482,7 @@
   justify-content: space-between;
   padding: 8px 0;
   color: var(--berry);
-  font-size: 10px;
+  font-size: 0.8438rem;
   font-weight: 850;
   text-decoration: none;
 }
@@ -1490,7 +1490,7 @@
   border-top: 1px solid #f6e9ef;
 }
 .sources a span {
-  font-size: 19px;
+  font-size: 1.1875rem;
 }
 .answer .no-source {
   margin-top: 12px;
@@ -1498,7 +1498,7 @@
   border-radius: 9px;
   background: #f7f1f4;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
 }
 .ask-form {
   display: flex;
@@ -1520,7 +1520,7 @@
   border-radius: 16px;
   background: var(--berry);
   color: white;
-  font-size: 23px;
+  font-size: 1.4375rem;
 }
 
 @keyframes wave {
@@ -1544,7 +1544,7 @@
 @media (max-width: 759px) and (max-height: 700px) {
   .home-brand {
     min-height: 52px;
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .home-brand .brand {
     transform: scale(0.68);
@@ -1554,11 +1554,11 @@
     border-radius: 17px;
   }
   .store-switch h1 {
-    font-size: 19px;
+    font-size: 1.1875rem;
   }
   .store-switch button {
     padding: 6px 10px;
-    font-size: 11px;
+    font-size: 0.875rem;
   }
   .greeting {
     height: 130px;
@@ -1574,7 +1574,7 @@
     padding: 0 7px 0 12px;
   }
   .greeting h2 {
-    font-size: 18px;
+    font-size: 1.125rem;
   }
   .feature {
     border-radius: 18px;
@@ -1588,7 +1588,7 @@
     height: 56px;
   }
   .feature b {
-    font-size: 14px;
+    font-size: 0.9688rem;
   }
   .reminder {
     min-height: 48px;
@@ -1698,7 +1698,7 @@
   border-radius: 99px;
   background: #ffe2ee;
   color: var(--berry);
-  font-size: 10px;
+  font-size: 0.8438rem;
   font-weight: 850;
   letter-spacing: 0.02em;
 }
@@ -1754,7 +1754,7 @@
 .price-note {
   margin-top: 10px;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 0.8125rem;
   line-height: 1.5;
 }
 .sources a {
@@ -1786,7 +1786,7 @@
 }
 .home-hero b {
   font-family: var(--font-round);
-  font-size: clamp(28px, 9vw, 38px);
+  font-size: clamp(1.75rem, 9vw, 2.375rem);
   font-weight: 600;
   letter-spacing: 0.01em;
   text-shadow: 0 2px 0 #b8336f30;
@@ -1874,13 +1874,13 @@
 .home .store-switch h1 {
   color: var(--plum);
   font-family: var(--font-round);
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 .home .store-switch button {
   padding: 9px 14px;
   font-family: var(--font-round);
-  font-size: 14px;
+  font-size: 0.9688rem;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -1971,7 +1971,7 @@
   justify-content: center;
   color: #7a1f4c;
   font-family: var(--font-round);
-  font-size: clamp(20px, 6vw, 28px);
+  font-size: clamp(1.25rem, 6vw, 1.75rem);
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.1;
@@ -2000,11 +2000,11 @@
 .home .feature b {
   color: var(--plum);
   font-family: var(--font-round);
-  font-size: clamp(17px, 4.8vw, 21px);
+  font-size: clamp(1.0625rem, 4.8vw, 1.3125rem);
   font-weight: 600;
 }
 .home .feature.wide b {
-  font-size: clamp(19px, 5.4vw, 24px);
+  font-size: clamp(1.1875rem, 5.4vw, 1.5rem);
 }
 .home .reminder {
   margin-top: 0;
@@ -2054,7 +2054,7 @@
   flex: 1;
   color: var(--plum);
   font-family: var(--font-round);
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
@@ -2086,29 +2086,29 @@
   display: block;
 }
 .supplier-card b {
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 800;
 }
 .supplier-card small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .supplier-card strong {
   flex: none;
   color: var(--green);
-  font-size: 15px;
+  font-size: 1rem;
   text-align: right;
 }
 .supplier-card strong.due {
   color: var(--berry);
 }
 .invoice-card.compact .invoice-top small {
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .invoice-first {
   margin-top: 8px;
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 800;
   line-height: 1.3;
 }
@@ -2116,13 +2116,13 @@
   display: block;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
 .invoice-more {
   margin-top: 4px;
   color: #b0618a;
-  font-size: 12px;
+  font-size: 0.9062rem;
   font-weight: 700;
 }
 .invoice-card.compact footer {
@@ -2132,12 +2132,12 @@
   gap: 8px;
 }
 .invoice-card.compact footer b {
-  font-size: 17px;
+  font-size: 1.0625rem;
 }
 .pay-state {
   padding: 5px 10px;
   border-radius: 99px;
-  font-size: 12px;
+  font-size: 0.9062rem;
   font-style: normal;
   font-weight: 800;
 }
@@ -2167,15 +2167,15 @@
 .day-head {
   margin: 0 4px 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 800;
 }
 .row b {
-  font-size: 15px;
+  font-size: 1rem;
 }
 .row small,
 .row a {
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 
 /* Tanya Data (chat) */
@@ -2189,7 +2189,7 @@
 .ask-page .suggestions button {
   flex: none;
   padding: 10px 13px;
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 .chat {
   display: flex;
@@ -2204,7 +2204,7 @@
   border-radius: 18px 18px 4px 18px;
   background: var(--pink);
   color: #fff;
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.35;
 }
 .chat .answer {
@@ -2212,7 +2212,7 @@
 }
 .chat .answer > p {
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 1rem;
   line-height: 1.45;
 }
 .chat .answer > p:first-child {
@@ -2234,7 +2234,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.9688rem;
 }
 .check-inline input {
   width: 20px;
@@ -2250,7 +2250,7 @@
   min-height: 46px;
   flex: 1;
   border-radius: 14px;
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 800;
 }
 .confirm-yes {
@@ -2269,7 +2269,7 @@
   background: #f1faf4;
 }
 .saved p {
-  font-size: 14px;
+  font-size: 0.9688rem;
   line-height: 1.45;
 }
 .saved p + p {
@@ -2277,7 +2277,7 @@
 }
 .chat .sources a,
 .chat .sources > b {
-  font-size: 12px;
+  font-size: 0.9062rem;
 }
 .ask-page .ask-form {
   position: sticky;
@@ -2320,7 +2320,7 @@
     padding-bottom: 18px;
   }
   .home-hero b {
-    font-size: 26px;
+    font-size: 1.625rem;
   }
   .hero-store {
     width: 36px;
@@ -2330,7 +2330,7 @@
     min-height: 50px;
   }
   .home .store-switch h1 {
-    font-size: 20px;
+    font-size: 1.25rem;
   }
   .pill-store {
     width: 28px;
@@ -2344,7 +2344,7 @@
     height: 140px;
   }
   .home .feature b {
-    font-size: 15px;
+    font-size: 1rem;
   }
 }
 @media (min-width: 760px) {
@@ -2405,7 +2405,7 @@
   gap: 10px;
 }
 .acosys-choice > span {
-  font-size: 14px;
+  font-size: 0.9688rem;
   font-weight: 800;
 }
 .acosys-choice > div {
@@ -2421,7 +2421,7 @@
   min-height: 40px;
   border-radius: 11px;
   color: #8f6d7c;
-  font-size: 14px;
+  font-size: 0.9688rem;
   font-weight: 800;
 }
 .acosys-choice button.active {
@@ -2465,7 +2465,7 @@ body {
   background: #fff;
   color: var(--berry);
   font-family: var(--font-round);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 .install-button svg,
@@ -2513,18 +2513,18 @@ body {
   background: linear-gradient(135deg, #d9387e, #a8255e);
   color: #fff;
   font-family: var(--font-round);
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
 }
 .invoice-card.compact > p.invoice-first {
   color: var(--ink);
-  font-size: 16px;
+  font-size: 1rem;
 }
 .invoice-card.compact > p.invoice-first span {
-  font-size: 14px;
+  font-size: 0.9688rem;
 }
 .invoice-card.compact > p.invoice-more {
-  font-size: 13px;
+  font-size: 0.9375rem;
 }
 
 /* Bar versi baru */
@@ -2545,7 +2545,7 @@ body {
   color: #fff;
   box-shadow: 0 12px 28px #57203c40;
   font-family: var(--font-round);
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 500;
 }
 .update-bar button {
@@ -2555,7 +2555,7 @@ body {
   background: #fff;
   color: var(--berry);
   font-family: var(--font-round);
-  font-size: 15px;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -2576,7 +2576,7 @@ body {
   line-height: 1.3;
 }
 .row > strong {
-  font-size: 14px;
+  font-size: 0.9688rem;
 }
 
 /* Tablet & desktop: isi di tengah, Kitty dan kartu ikut tinggi layar */
@@ -2616,7 +2616,7 @@ body {
     margin-right: 3%;
   }
   .home .greeting h2 {
-    font-size: clamp(20px, min(11cqh, 5cqw), 40px);
+    font-size: clamp(1.25rem, min(11cqh, 5cqw), 2.5rem);
   }
   .home .features {
     flex: none;
@@ -2634,10 +2634,10 @@ body {
     height: clamp(60px, 8vw, 90px);
   }
   .home .feature b {
-    font-size: clamp(18px, 2.4vw, 25px);
+    font-size: clamp(1.125rem, 2.4vw, 1.5625rem);
   }
   .home .feature.wide b {
-    font-size: clamp(20px, 2.8vw, 28px);
+    font-size: clamp(1.25rem, 2.8vw, 1.75rem);
   }
   .home .reminder {
     flex: none;
@@ -2674,7 +2674,7 @@ body {
     padding: 4px 16px 16px;
   }
   .home-hero b {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .hero-store {
     width: 32px;
@@ -2686,7 +2686,7 @@ body {
     padding: 4px;
   }
   .home .store-switch h1 {
-    font-size: 19px;
+    font-size: 1.1875rem;
   }
   .home .greeting {
     grid-column: 1;
@@ -2719,10 +2719,10 @@ body {
     height: 40px;
   }
   .home .feature b {
-    font-size: 15px;
+    font-size: 1rem;
   }
   .home .feature.wide b {
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
   .home .reminder {
     grid-column: 2;
@@ -2731,7 +2731,7 @@ body {
     padding: 4px 14px;
   }
   .home .reminder b {
-    font-size: 15px;
+    font-size: 1rem;
   }
 }
 
@@ -2767,4 +2767,103 @@ body {
   .home .greeting {
     max-height: 580px;
   }
+}
+
+/* ===== Ukuran huruf ikut pengaturan HP ===== */
+/* Semua ukuran huruf memakai rem, jadi mengikuti ukuran teks bawaan browser/HP. */
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+/* iPhone/iPad: ikuti Pengaturan → Tampilan & Kecerahan → Ukuran Teks (Dynamic Type). */
+@supports (font: -apple-system-body) and (-webkit-touch-callout: none) {
+  html {
+    font: -apple-system-body;
+    font-family: var(--font-sans);
+  }
+}
+body {
+  font-size: 1rem;
+}
+
+/* ===== Kartu jawaban Tanya & Catat ===== */
+.answer-cards {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.answer-card {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fffafd;
+}
+.answer-card h3 {
+  color: var(--plum);
+  font-family: var(--font-round);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.answer-card > small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.answer-card dl {
+  margin-top: 6px;
+}
+.answer-card dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid #f4e3ea;
+}
+.answer-card dl > div:first-child {
+  border-top: 0;
+}
+.answer-card dt {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: #7d5d6d;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+.answer-card dd {
+  max-width: 62%;
+  flex: 0 1 auto;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.35;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.answer-card .good dd {
+  color: var(--green);
+}
+.answer-card .warn dd {
+  color: var(--amber);
+}
+.answer-card .bad dd {
+  color: var(--red);
+}
+.chat .answer > p.answer-note,
+.answer-note {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.chat .answer > p {
+  font-size: 1.05rem;
+}
+.chat-user {
+  font-size: 1.05rem;
+}
+.saved .answer-cards {
+  margin-top: 8px;
 }

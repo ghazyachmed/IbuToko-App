@@ -42,13 +42,25 @@ export type PendingAction =
       date: string
     }
 
+/** Satu baris di kartu jawaban: label kiri, nilai kanan. */
+export type Row = { label: string; value: string; tone?: 'good' | 'warn' | 'bad' }
+/** Kartu jawaban: judul (biasanya nama barang/supplier) + baris-baris singkat. */
+export type Card = { title: string; sub?: string; rows: Row[] }
+
 export type Answer = {
   branch: Branch
+  /** Kalimat pembuka singkat (boleh kosong). */
   lines: string[]
+  cards?: Card[]
+  /** Catatan kecil di bawah kartu. */
+  notes?: string[]
   sources: Array<{ label: string; to: string }>
   tone?: 'warning' | 'error'
   action?: PendingAction
 }
+
+/** Hasil setelah data disimpan dari chat. */
+export type SavedResult = { lines: string[]; cards: Card[] }
 
 const STOP_WORDS = new Set(
   `berapa berapakah brp brapa harga harganya stok stoknya stock sisa kapan terakhir terakhirnya membeli
@@ -69,7 +81,7 @@ const INPUT_WORDS = new Set(
     .split(/\s+/)
     .filter(Boolean),
 )
-const NOT_PROFIT = 'Ini selisih kotor, belum untung bersih.'
+const NOT_PROFIT = 'Selisih ini belum untung bersih.'
 
 const tgl = (value: string) =>
   value.slice(0, 4) === todayISO().slice(0, 4)
@@ -183,20 +195,32 @@ const titleCase = (value: string) =>
     .map((word) => (word.length <= 3 ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1)))
     .join(' ')
 
+/* ---------- pembuat kartu ---------- */
+
+const row = (label: string, value: string, tone?: Row['tone']): Row => ({ label, value, tone })
+const stockTone = (product: ProductView): Row['tone'] =>
+  product.status === 'Habis' ? 'bad' : product.status === 'Hampir habis' ? 'warn' : 'good'
+const stockValue = (product: ProductView) =>
+  product.stock ? `${qty(product.stock, product.baseUnit)}${product.status === 'Aman' ? '' : ` (${product.status.toLowerCase()})`}` : 'Habis'
+const costValue = (product: ProductView, purchase: PurchaseRecord) => per(purchase.basePrice, product.baseUnit)
+const fromText = (purchase: PurchaseRecord) => `${purchase.supplier}, ${tgl(purchase.date)}`
+
 /* ---------- setelah info harga / harga jual disimpan ---------- */
 
-export function priceAnalysis(product: ProductView, entryId: string): string[] {
+export function priceAnalysis(product: ProductView, entryId: string): SavedResult {
   const entry = product.history.find((item) => item.invoice === entryId)
-  if (!entry) return []
+  if (!entry) return { lines: [], cards: [] }
   const previous = product.history.filter((item) => item.invoice !== entryId)[0]
-  const lines = [`Tersimpan ✓ ${product.name}: beli ${per(entry.basePrice, product.baseUnit)} dari ${entry.supplier}.`]
+  const rows: Row[] = [row('Harga beli baru', `${costValue(product, entry)} (${entry.supplier})`)]
 
   if (previous) {
     const diff = entry.basePrice - previous.basePrice
-    lines.push(
-      diff === 0
-        ? `Harga sama seperti terakhir (${previous.supplier}, ${tgl(previous.date)}).`
-        : `${diff > 0 ? 'Naik' : 'Turun'} ${rupiah(Math.abs(Math.round(diff)))} dari terakhir ${per(previous.basePrice, product.baseUnit)} (${previous.supplier}, ${tgl(previous.date)}).`,
+    rows.push(
+      row(
+        'Dibanding terakhir',
+        diff === 0 ? 'Sama' : `${diff > 0 ? 'Naik' : 'Turun'} ${rupiah(Math.abs(Math.round(diff)))}`,
+        diff > 0 ? 'warn' : diff < 0 ? 'good' : undefined,
+      ),
     )
   }
 
@@ -204,33 +228,40 @@ export function priceAnalysis(product: ProductView, entryId: string): string[] {
   const margin = (product.sellPrice - entry.basePrice) / product.sellPrice
   if (entry.basePrice >= product.sellPrice) {
     const target = oldMargin && oldMargin > 0 ? oldMargin : 0.2
-    lines.push(`⚠ Harga jual ${rupiah(product.sellPrice)} sudah rugi. Naikkan ke ±${rupiah(roundUp(entry.basePrice / (1 - target)))}.`)
+    rows.push(row('Harga jual', `${rupiah(product.sellPrice)} — rugi!`, 'bad'))
+    rows.push(row('Saran harga jual', `±${rupiah(roundUp(entry.basePrice / (1 - target)))}`, 'warn'))
   } else if (oldMargin !== null && margin < oldMargin - 0.005) {
-    lines.push(`Harga jual ${rupiah(product.sellPrice)} sebaiknya naik ke ±${rupiah(roundUp(entry.basePrice / (1 - oldMargin)))}.`)
+    rows.push(row('Harga jual', rupiah(product.sellPrice)))
+    rows.push(row('Saran harga jual', `±${rupiah(roundUp(entry.basePrice / (1 - oldMargin)))}`, 'warn'))
   } else {
-    lines.push(`Harga jual ${rupiah(product.sellPrice)} masih aman.`)
+    rows.push(row('Harga jual', `${rupiah(product.sellPrice)} — aman`, 'good'))
   }
 
+  rows.push(row('Stok', product.status === 'Aman' ? `${stockValue(product)} — belum perlu beli` : `${stockValue(product)} — perlu beli`, stockTone(product)))
   const cheaper = latestPerSupplier(product).find(
     (item) => item.supplier !== entry.supplier && item.basePrice < entry.basePrice,
   )
-  lines.push(
-    product.status === 'Aman'
-      ? `Stok masih ${qty(product.stock, product.baseUnit)}, belum perlu beli.`
-      : `Stok tinggal ${qty(product.stock, product.baseUnit)}, perlu beli lagi.`,
-  )
-  if (cheaper) lines.push(`${cheaper.supplier} lebih murah (${per(cheaper.basePrice, product.baseUnit)}, ${tgl(cheaper.date)}).`)
-  if (!entry.acosysRecorded) lines.push('Belum dicatat di ACOSYS.')
-  return lines
+  if (cheaper) rows.push(row('Lebih murah di', `${cheaper.supplier} ${costValue(product, cheaper)}`, 'good'))
+  rows.push(row('ACOSYS', entry.acosysRecorded ? 'Sudah' : 'Belum', entry.acosysRecorded ? 'good' : 'warn'))
+  return { lines: ['Tersimpan ✓'], cards: [{ title: product.name, rows }] }
 }
 
-export function sellAnalysis(product: ProductView): string[] {
+export function sellAnalysis(product: ProductView): SavedResult {
   const change = product.sellPriceChange
-  if (!change) return []
-  return [
-    `Tersimpan ✓ Harga jual ${product.name}: ${rupiah(change.previous)} → ${per(change.sellPrice, product.baseUnit)}.`,
-    ...(change.acosysRecorded ? [] : ['Jangan lupa ubah juga di ACOSYS.']),
-  ]
+  if (!change) return { lines: [], cards: [] }
+  return {
+    lines: ['Tersimpan ✓'],
+    cards: [
+      {
+        title: product.name,
+        rows: [
+          row('Harga jual lama', rupiah(change.previous)),
+          row('Harga jual baru', per(change.sellPrice, product.baseUnit), 'good'),
+          row('ACOSYS', change.acosysRecorded ? 'Sudah' : 'Belum — ubah juga ya', change.acosysRecorded ? 'good' : 'warn'),
+        ],
+      },
+    ],
+  }
 }
 
 /* ---------- mencatat dari chat ---------- */
@@ -264,14 +295,15 @@ function inputAnswer(question: string, branch: Branch, data: TokoData, money: Mo
     return {
       branch,
       tone: 'warning',
-      lines: [`Barangnya belum ketemu. Tulis nama seperti di nota, misal "Busa Ati 9 mm Hitam".`],
+      lines: ['Barangnya belum ketemu.', 'Tulis nama seperti di nota, misal "Busa Ati 9 mm Hitam".'],
       sources: [],
     }
   if (matches.length > 1)
     return {
       branch,
       tone: 'warning',
-      lines: ['Barang yang mana, Bu?', ...matches.slice(0, 5).map((product) => `• ${product.name}`)],
+      lines: ['Barang yang mana, Bu?'],
+      cards: [{ title: 'Pilih salah satu', rows: matches.slice(0, 5).map((product) => row('•', product.name)) }],
       sources: [],
     }
   const product = matches[0]
@@ -292,17 +324,30 @@ function inputAnswer(question: string, branch: Branch, data: TokoData, money: Mo
       return {
         branch,
         tone: 'error',
-        lines: [
-          `Tidak bisa disimpan. Harga jual ${rupiah(sellPrice)} lebih murah dari harga beli ${per(cost.basePrice, product.baseUnit)} (${cost.supplier}, ${tgl(cost.date)}).`,
+        lines: ['Tidak bisa disimpan. Harga jual lebih murah dari harga beli.'],
+        cards: [
+          {
+            title: product.name,
+            rows: [
+              row('Harga jual baru', rupiah(sellPrice), 'bad'),
+              row('Harga beli terakhir', `${costValue(product, cost)} (${fromText(cost)})`),
+            ],
+          },
         ],
         sources: [purchaseSource(cost)],
       }
     return {
       branch,
-      lines: [
-        `Ubah harga jual ${product.name}?`,
-        `${rupiah(product.sellPrice)} → ${per(sellPrice, product.baseUnit)}`,
-        ...(cost ? [`Harga beli terakhir ${per(cost.basePrice, product.baseUnit)}.`] : []),
+      lines: ['Ubah harga jual?'],
+      cards: [
+        {
+          title: product.name,
+          rows: [
+            row('Harga jual lama', rupiah(product.sellPrice)),
+            row('Harga jual baru', per(sellPrice, product.baseUnit), 'good'),
+            ...(cost ? [row('Harga beli terakhir', costValue(product, cost))] : []),
+          ],
+        },
       ],
       sources: cost ? [purchaseSource(cost)] : [],
       action: {
@@ -322,7 +367,7 @@ function inputAnswer(question: string, branch: Branch, data: TokoData, money: Mo
     return {
       branch,
       tone: 'warning',
-      lines: [`Dari supplier mana, Bu? Tambahkan "dari ..." ya.`],
+      lines: ['Dari supplier mana, Bu?', 'Tambahkan "dari …" ya.'],
       sources: [],
     }
   const buyUnit = unit ?? product.purchaseUnit
@@ -330,10 +375,18 @@ function inputAnswer(question: string, branch: Branch, data: TokoData, money: Mo
   const previous = product.latestCost
   return {
     branch,
-    lines: [
-      `Simpan harga baru ${product.name}?`,
-      `${supplier}${suppliers.length ? '' : ' (baru)'}: ${per(amount.value, buyUnit)}${shipping ? ` + ongkir ${rupiah(shipping)}` : ''}${buyUnit !== product.baseUnit ? ` (= ${per(base, product.baseUnit)})` : ''}`,
-      ...(previous ? [`Terakhir: ${per(previous.basePrice, product.baseUnit)} dari ${previous.supplier}, ${tgl(previous.date)}.`] : []),
+    lines: ['Simpan harga baru?'],
+    cards: [
+      {
+        title: product.name,
+        rows: [
+          row('Supplier', `${supplier}${suppliers.length ? '' : ' (baru)'}`),
+          row('Harga dari supplier', per(amount.value, buyUnit)),
+          ...(shipping ? [row('Ongkir', rupiah(shipping))] : []),
+          ...(buyUnit !== product.baseUnit || shipping ? [row('Harga beli', per(base, product.baseUnit))] : []),
+          ...(previous ? [row('Terakhir', `${costValue(product, previous)} (${fromText(previous)})`)] : []),
+        ],
+      },
     ],
     sources: previous ? [purchaseSource(previous)] : [],
     action: {
@@ -355,41 +408,53 @@ function inputAnswer(question: string, branch: Branch, data: TokoData, money: Mo
 function productAnswer(question: string, branch: Branch, matches: ProductView[], supplier?: string): Answer {
   const q = question.toLowerCase()
   const list = matches.slice(0, 5)
-  const lines: string[] = []
+  const cards: Card[] = []
   const sources: Answer['sources'] = []
-  const more = matches.length > list.length ? [`+${matches.length - list.length} barang lain. Sebut lebih lengkap ya.`] : []
-  const done = (extra: string[] = []) => ({ branch, lines: [...lines, ...more, ...extra], sources })
+  const notes = matches.length > list.length ? [`Ada ${matches.length - list.length} barang lain. Tulis nama lebih lengkap ya.`] : []
+  const done = (lines: string[] = [], extra: string[] = []): Answer => ({
+    branch,
+    lines,
+    cards,
+    notes: [...notes, ...extra],
+    sources,
+  })
 
   if (/murah|mahal/.test(q)) {
     for (const product of list) {
       const offers = latestPerSupplier(product)
-      if (!offers.length) {
-        lines.push(`${product.name}: belum ada harga beli.`)
-        continue
-      }
-      const [best, ...others] = offers
-      lines.push(
-        `${product.name}: paling murah ${best.supplier} ${per(best.basePrice, product.baseUnit)} (${tgl(best.date)}).${others.length ? ` Lainnya: ${others.map((item) => `${item.supplier} ${rupiah(Math.round(item.basePrice))}`).join(', ')}.` : ''}`,
-      )
+      cards.push({
+        title: product.name,
+        sub: offers.length ? 'Harga beli terakhir tiap supplier' : undefined,
+        rows: offers.length
+          ? offers.map((offer, index) =>
+              row(`${offer.supplier}${index === 0 ? ' ✓' : ''} · ${tgl(offer.date)}`, costValue(product, offer), index === 0 ? 'good' : undefined),
+            )
+          : [row('Harga beli', 'Belum ada')],
+      })
       offers.forEach((offer) => sources.push(purchaseSource(offer)))
     }
-    return done()
+    return done(list.length === 1 ? ['Yang paling murah diberi tanda ✓.'] : ['Yang paling murah diberi tanda ✓.'])
   }
 
   if (/banding|selisih|\bvs\b/.test(q) || (/\bbeli\b/.test(q) && /\bjual\b/.test(q))) {
     for (const product of list) {
       const cost = product.latestCost
       if (!cost) {
-        lines.push(`${product.name}: jual ${per(product.sellPrice, product.baseUnit)}, harga beli belum ada.`)
+        cards.push({ title: product.name, rows: [row('Harga jual', per(product.sellPrice, product.baseUnit)), row('Harga beli', 'Belum ada')] })
         continue
       }
       const gap = product.sellPrice - cost.basePrice
-      lines.push(
-        `${product.name}: beli ${rupiah(Math.round(cost.basePrice))}, jual ${per(product.sellPrice, product.baseUnit)}. Selisih ${rupiah(Math.round(gap))} (${pct(gap / product.sellPrice)}).${gap < 0 ? ' ⚠ Rugi!' : ''}`,
-      )
+      cards.push({
+        title: product.name,
+        rows: [
+          row('Harga jual', per(product.sellPrice, product.baseUnit)),
+          row('Harga beli terakhir', `${costValue(product, cost)} (${fromText(cost)})`),
+          row('Selisih', `${rupiah(Math.round(gap))} (${pct(gap / product.sellPrice)})`, gap < 0 ? 'bad' : 'good'),
+        ],
+      })
       sources.push(purchaseSource(cost))
     }
-    return done([NOT_PROFIT])
+    return done([], [NOT_PROFIT])
   }
 
   if (/profit|untung|laba|digulung|modal lagi|beli lagi/.test(q)) {
@@ -397,7 +462,7 @@ function productAnswer(question: string, branch: Branch, matches: ProductView[],
       const last = product.lastPurchase
       const cost = product.latestCost
       if (!last || !cost) {
-        lines.push(`${product.name}: belum ada pembelian.`)
+        cards.push({ title: product.name, rows: [row('Pembelian', 'Belum ada')] })
         continue
       }
       const sold = product.movements
@@ -405,23 +470,33 @@ function productAnswer(question: string, branch: Branch, matches: ProductView[],
         .reduce((sum, item) => sum + item.baseQuantity, 0)
       const revenue = sold * product.sellPrice
       const restock = sold * cost.basePrice
-      lines.push(
-        sold
-          ? `${product.name}: sejak beli ${tgl(last.date)} laku ${qty(sold, product.baseUnit)} = ${rupiah(revenue)}. Untuk beli lagi butuh ±${rupiah(Math.round(restock))} (${pct(restock / revenue)}). Sisa ±${rupiah(Math.round(revenue - restock))}.`
-          : `${product.name}: belum laku sejak beli ${tgl(last.date)}.`,
-      )
+      cards.push({
+        title: product.name,
+        sub: `Sejak beli ${tgl(last.date)}`,
+        rows: sold
+          ? [
+              row('Laku', qty(sold, product.baseUnit)),
+              row('Uang masuk', rupiah(revenue)),
+              row('Untuk beli lagi', `±${rupiah(Math.round(restock))} (${pct(restock / revenue)})`),
+              row('Sisa', `±${rupiah(Math.round(revenue - restock))}`, 'good'),
+            ]
+          : [row('Laku', 'Belum ada')],
+      })
       sources.push(purchaseSource(last))
     }
-    return done([NOT_PROFIT])
+    return done([], [NOT_PROFIT])
   }
 
   if (/\bisi\b|berapa banyak/.test(q)) {
     for (const product of list) {
-      lines.push(
-        product.conversion === 1 && product.purchaseUnit === product.baseUnit
-          ? `${product.name}: dibeli satuan ${product.baseUnit}, tidak ada isi kemasan.`
-          : `1 ${product.purchaseUnit} ${product.name} = ${qty(product.conversion, product.baseUnit)}.`,
-      )
+      cards.push({
+        title: product.name,
+        rows: [
+          product.conversion === 1 && product.purchaseUnit === product.baseUnit
+            ? row('Isi', `Dibeli per ${product.baseUnit}`)
+            : row(`1 ${product.purchaseUnit}`, qty(product.conversion, product.baseUnit), 'good'),
+        ],
+      })
       if (product.lastPurchase) sources.push(purchaseSource(product.lastPurchase))
     }
     return done()
@@ -429,15 +504,18 @@ function productAnswer(question: string, branch: Branch, matches: ProductView[],
 
   if (/kapan|datang/.test(q) || /terakhir\s+(mem)?beli|beli\s+terakhir/.test(q)) {
     for (const product of list) {
-      const last = product.history.find(
-        (item) => item.source === 'Nota' && (!supplier || item.supplier === supplier),
-      )
-      if (!last) {
-        lines.push(`${product.name}: belum pernah beli${supplier ? ` dari ${supplier}` : ''}.`)
-        continue
-      }
-      lines.push(`${product.name}: terakhir beli ${tgl(last.date)} dari ${last.supplier}, ${qty(last.quantity, last.unit)}.`)
-      sources.push(purchaseSource(last))
+      const last = product.history.find((item) => item.source === 'Nota' && (!supplier || item.supplier === supplier))
+      cards.push({
+        title: product.name,
+        rows: last
+          ? [
+              row('Terakhir beli', tgl(last.date), 'good'),
+              row('Dari', last.supplier),
+              row('Jumlah', qty(last.quantity, last.unit)),
+            ]
+          : [row('Terakhir beli', `Belum pernah${supplier ? ` dari ${supplier}` : ''}`)],
+      })
+      if (last) sources.push(purchaseSource(last))
     }
     return done()
   }
@@ -445,9 +523,13 @@ function productAnswer(question: string, branch: Branch, matches: ProductView[],
   if (/stok|stock|sisa/.test(q)) {
     for (const product of list) {
       const lastMove = product.movements[0]
-      lines.push(
-        `${product.name}: stok ${qty(product.stock, product.baseUnit)}${product.status === 'Aman' ? '.' : ` — ${product.status.toLowerCase()}!`}`,
-      )
+      cards.push({
+        title: product.name,
+        rows: [
+          row(`Stok ${branch}`, stockValue(product), stockTone(product)),
+          row('Batas minimum', qty(product.minStock, product.baseUnit)),
+        ],
+      })
       if (lastMove) sources.push(movementSource(lastMove))
     }
     return done()
@@ -456,29 +538,33 @@ function productAnswer(question: string, branch: Branch, matches: ProductView[],
   if (supplier || /lama|dulu|kemarin|sebelum|riwayat/.test(q)) {
     for (const product of list) {
       const history = product.history.filter((item) => !supplier || item.supplier === supplier).slice(0, 3)
-      if (!history.length) {
-        lines.push(`${product.name}: belum ada harga${supplier ? ` dari ${supplier}` : ''}.`)
-        continue
-      }
-      lines.push(
-        `${product.name}${supplier ? ` (${supplier})` : ''}: ${history
-          .map((item) => `${tgl(item.date)} ${rupiah(Math.round(item.basePrice))}${supplier ? '' : ` ${item.supplier}`}`)
-          .join(' • ')} per ${unitLabel(product.baseUnit)}.`,
-      )
+      const other = supplier ? latestPerSupplier(product).find((item) => item.supplier !== supplier) : undefined
+      cards.push({
+        title: product.name,
+        sub: supplier ? `Harga beli dari ${supplier}` : 'Riwayat harga beli',
+        rows: [
+          ...(history.length
+            ? history.map((item) => row(supplier ? tgl(item.date) : `${tgl(item.date)} · ${item.supplier}`, costValue(product, item)))
+            : [row('Harga beli', 'Belum ada')]),
+          ...(other ? [row(`Pembanding: ${other.supplier} · ${tgl(other.date)}`, costValue(product, other))] : []),
+          row('Harga jual sekarang', per(product.sellPrice, product.baseUnit)),
+        ],
+      })
       history.forEach((item) => sources.push(purchaseSource(item)))
-      if (supplier) {
-        const other = latestPerSupplier(product).find((item) => item.supplier !== supplier)
-        if (other) lines.push(`Pembanding: ${other.supplier} ${per(other.basePrice, product.baseUnit)} (${tgl(other.date)}).`)
-      }
     }
     return done()
   }
 
   for (const product of list) {
     const cost = product.latestCost
-    lines.push(
-      `${product.name}: jual ${per(product.sellPrice, product.baseUnit)}${cost ? `, beli ${rupiah(Math.round(cost.basePrice))} (${cost.supplier}, ${tgl(cost.date)})` : ''}.`,
-    )
+    cards.push({
+      title: product.name,
+      rows: [
+        row('Harga jual', per(product.sellPrice, product.baseUnit), 'good'),
+        row('Harga beli terakhir', cost ? `${costValue(product, cost)} (${fromText(cost)})` : 'Belum ada'),
+        row(`Stok ${branch}`, stockValue(product), stockTone(product)),
+      ],
+    })
     if (cost) sources.push(purchaseSource(cost))
   }
   return done()
@@ -516,26 +602,35 @@ function compareAnswer(question: string, branch: Branch, data: TokoData): Answer
     }
   })
   if (resolved.some((item) => item.empty)) return null
-  const lines: string[] = []
   const sources: Answer['sources'] = []
-  for (const item of resolved) {
-    if (!item.best) {
-      lines.push(`${item.label}: belum ada datanya.`)
-      continue
-    }
-    const { product, offer } = item.best
-    lines.push(`${item.label}: ${product.name} ${per(offer.basePrice, product.baseUnit)} (${offer.supplier}, ${tgl(offer.date)}).`)
-    sources.push(purchaseSource(offer))
-  }
   const [a, b] = resolved
-  if (a.best && b.best) {
-    if (a.best.product.baseUnit !== b.best.product.baseUnit) lines.push('Satuannya beda, tidak bisa dibandingkan langsung.')
-    else {
-      const diff = a.best.offer.basePrice - b.best.offer.basePrice
-      lines.push(diff === 0 ? 'Harganya sama.' : `Lebih murah: ${diff < 0 ? a.label : b.label}, beda ${rupiah(Math.abs(Math.round(diff)))}.`)
-    }
+  let winner = ''
+  if (a.best && b.best && a.best.product.baseUnit === b.best.product.baseUnit) {
+    const diff = a.best.offer.basePrice - b.best.offer.basePrice
+    winner = diff === 0 ? '' : diff < 0 ? a.label : b.label
   }
-  return { branch, lines, sources }
+  const cards: Card[] = resolved.map((item) => {
+    if (!item.best) return { title: item.label, rows: [row('Data', 'Belum ada')] }
+    const { product, offer } = item.best
+    sources.push(purchaseSource(offer))
+    return {
+      title: `${item.label}${winner === item.label ? ' ✓' : ''}`,
+      rows: [
+        row('Barang', product.name),
+        row('Harga beli', costValue(product, offer), winner === item.label ? 'good' : undefined),
+        row('Dari', fromText(offer)),
+      ],
+    }
+  })
+  const lines =
+    a.best && b.best
+      ? a.best.product.baseUnit !== b.best.product.baseUnit
+        ? ['Satuannya beda, jadi tidak bisa dibandingkan langsung.']
+        : winner
+          ? [`Lebih murah: ${winner}, beda ${rupiah(Math.abs(Math.round(a.best.offer.basePrice - b.best.offer.basePrice)))}.`]
+          : ['Harganya sama.']
+      : []
+  return { branch, lines, cards, sources }
 }
 
 /* ---------- pertanyaan tentang supplier ---------- */
@@ -557,7 +652,10 @@ function supplierAnswer(question: string, branch: Branch, data: TokoData, suppli
       const lastPaid = invoices.find((invoice) => invoice.paidDates.length)
       return {
         branch,
-        lines: [`Sudah lunas semua ✓${lastPaid ? ` Terakhir bayar ${tgl(lastPaid.paidDates.at(-1)!)}.` : ''}`],
+        lines: ['Sudah lunas semua ✓'],
+        cards: lastPaid
+          ? [{ title: supplier, rows: [row('Terakhir bayar', tgl(lastPaid.paidDates.at(-1)!), 'good'), row('Nota', lastPaid.number)] }]
+          : [],
         sources: lastPaid ? [source(lastPaid)] : [],
       }
     }
@@ -565,11 +663,13 @@ function supplierAnswer(question: string, branch: Branch, data: TokoData, suppli
     return {
       branch,
       tone: 'warning',
-      lines: [
-        `Belum lunas: ${open.length} nota, sisa ${rupiah(total)}.`,
-        ...open.map(
-          (invoice) => `• ${invoice.number}: sisa ${rupiah(invoice.remainingBalance)}, tempo ${tgl(invoice.dueDate)}`,
-        ),
+      lines: [`Belum lunas: ${open.length} nota.`],
+      cards: [
+        {
+          title: supplier,
+          sub: `Total sisa ${rupiah(total)}`,
+          rows: open.map((invoice) => row(`${invoice.number} · tempo ${tgl(invoice.dueDate)}`, rupiah(invoice.remainingBalance), 'warn')),
+        },
       ],
       sources: open.map(source),
     }
@@ -578,9 +678,13 @@ function supplierAnswer(question: string, branch: Branch, data: TokoData, suppli
   const recent = invoices.slice(0, 3)
   return {
     branch,
-    lines: [
-      `Barang ${supplier} terakhir datang ${tgl(recent[0].date)}.`,
-      ...recent.map((invoice) => `• ${tgl(invoice.date)}: ${invoice.items.length} barang, ${invoice.status.toLowerCase()}`),
+    lines: [`Barang ${supplier} terakhir datang ${tgl(recent[0].date)}.`],
+    cards: [
+      {
+        title: supplier,
+        sub: 'Barang datang',
+        rows: recent.map((invoice) => row(`${tgl(invoice.date)} · ${invoice.items.length} barang`, invoice.status)),
+      },
     ],
     sources: recent.map(source),
   }
@@ -618,9 +722,8 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
 
   if (/\buang\b|saldo|\bkas\b|cashflow|cash flow|\bduit\b/.test(q)) {
     const month = todayISO().slice(0, 7)
-    const total = data.accounts
-      .filter((account) => account.branch === branch)
-      .reduce((sum, account) => sum + account.balance, 0)
+    const accounts = data.accounts.filter((account) => account.branch === branch)
+    const total = accounts.reduce((sum, account) => sum + account.balance, 0)
     const incoming = data.income
       .filter((item) => item.branch === branch && item.date.startsWith(month))
       .reduce((sum, item) => sum + item.amount, 0)
@@ -629,12 +732,19 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
       .reduce((sum, item) => sum + item.amount, 0)
     return {
       branch,
-      lines: [
-        `Uang tercatat: ${rupiah(total)}.`,
-        `Bulan ini masuk ${rupiah(incoming)}, keluar ${rupiah(outgoing)}.`,
-        'Uang tunai di laci belum termasuk.',
+      lines: [],
+      cards: [
+        {
+          title: `Uang ${branch}`,
+          rows: [
+            row('Uang tercatat', rupiah(total), 'good'),
+            row('Masuk bulan ini', rupiah(incoming), 'good'),
+            row('Bayar supplier bulan ini', rupiah(outgoing), 'warn'),
+          ],
+        },
       ],
-      sources: [{ label: `Buku Uang • bulan ini`, to: '/app/buku-uang' }],
+      notes: ['Uang tunai di laci belum termasuk.'],
+      sources: [{ label: 'Buku Uang • bulan ini', to: '/app/buku-uang' }],
     }
   }
 
@@ -653,10 +763,10 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
     const slow = ranked.filter((item) => item.sold === 0).slice(0, 3)
     return {
       branch,
-      lines: [
-        'Paling laris (30 hari):',
-        ...top.map(({ product, sold }) => `• ${product.name} — ${qty(sold, product.baseUnit)}`),
-        ...(slow.length ? ['Belum laku:', ...slow.map(({ product }) => `• ${product.name}`)] : []),
+      lines: [],
+      cards: [
+        { title: 'Paling laris', sub: '30 hari terakhir', rows: top.map(({ product, sold }) => row(product.name, qty(sold, product.baseUnit), 'good')) },
+        ...(slow.length ? [{ title: 'Belum laku', rows: slow.map(({ product }) => row(product.name, `stok ${qty(product.stock, product.baseUnit)}`)) }] : []),
       ],
       sources: top.filter((item) => item.lastSale).map(({ lastSale }) => movementSource(lastSale!)),
     }
@@ -669,13 +779,11 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
     return {
       branch,
       tone: low.length ? 'warning' : undefined,
-      lines: low.length
-        ? [
-            `${low.length} barang perlu dibeli:`,
-            ...low.slice(0, 8).map((product) => `• ${product.name} — ${product.stock ? qty(product.stock, product.baseUnit) : 'habis'}`),
-            ...(low.length > 8 ? [`+${low.length - 8} lainnya`] : []),
-          ]
-        : ['Stok aman semua ✓'],
+      lines: low.length ? [`${low.length} barang perlu dibeli di ${branch}.`] : ['Stok aman semua ✓'],
+      cards: low.length
+        ? [{ title: 'Perlu dibeli', rows: low.slice(0, 8).map((product) => row(product.name, stockValue(product), stockTone(product))) }]
+        : [],
+      notes: low.length > 8 ? [`Ada ${low.length - 8} barang lain.`] : [],
       sources: low
         .slice(0, 8)
         .filter((product) => product.movements[0])
@@ -691,13 +799,11 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
       .slice(0, 5)
     return {
       branch,
-      lines: tight.length
-        ? [
-            'Selisih paling tipis:',
-            ...tight.map(({ product, gap }) => `• ${product.name} — ${pct(gap)}`),
-            'Sebut nama barangnya untuk detail.',
-          ]
-        : ['Belum ada harga beli tercatat.'],
+      lines: tight.length ? ['Barang dengan selisih paling tipis:'] : ['Belum ada harga beli tercatat.'],
+      cards: tight.length
+        ? [{ title: 'Selisih jual − beli', rows: tight.map(({ product, gap }) => row(product.name, pct(gap), gap < 0.12 ? 'warn' : undefined)) }]
+        : [],
+      notes: tight.length ? ['Sebut nama barangnya untuk detail.', NOT_PROFIT] : [],
       sources: tight.map(({ cost }) => purchaseSource(cost)),
     }
   }
@@ -707,7 +813,16 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
     const remaining = open.reduce((sum, invoice) => sum + invoice.remainingBalance, 0)
     return {
       branch,
-      lines: [open.length ? `${open.length} nota belum lunas, sisa ${rupiah(remaining)}.` : 'Semua nota sudah lunas ✓'],
+      lines: [open.length ? `${open.length} nota belum lunas.` : 'Semua nota sudah lunas ✓'],
+      cards: open.length
+        ? [
+            {
+              title: 'Belum lunas',
+              sub: `Total sisa ${rupiah(remaining)}`,
+              rows: open.map((invoice) => row(invoice.supplier, rupiah(invoice.remainingBalance), 'warn')),
+            },
+          ]
+        : [],
       sources: open.map((invoice) => ({
         label: `${invoice.supplier} • ${invoice.number}`,
         to: invoiceLink(invoice.number),
@@ -723,7 +838,10 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
     const total = items.reduce((sum, item) => sum + item.amount, 0)
     return {
       branch,
-      lines: [items.length ? `Masuk hari ini ${rupiah(total)}.` : 'Belum ada uang masuk hari ini.'],
+      lines: items.length ? [] : ['Belum ada uang masuk hari ini.'],
+      cards: items.length
+        ? [{ title: 'Uang masuk hari ini', rows: [...items.map((item) => row(item.method, rupiah(item.amount))), row('Total', rupiah(total), 'good')] }]
+        : [],
       sources: items.map((item) => ({ label: `${item.method} • ${tgl(item.date)}`, to: '/app/buku-uang' })),
     }
   }
@@ -733,7 +851,10 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
     return {
       branch,
       tone: under.length ? 'warning' : undefined,
-      lines: [under.length ? `Dijual rugi: ${under.map((item) => item.name).join(', ')}.` : 'Tidak ada barang yang dijual rugi ✓'],
+      lines: [under.length ? 'Barang ini dijual rugi:' : 'Tidak ada barang yang dijual rugi ✓'],
+      cards: under.length
+        ? [{ title: 'Dijual rugi', rows: under.map((product) => row(product.name, `jual ${rupiah(product.sellPrice)}`, 'bad')) }]
+        : [],
       sources: under.map((product) => purchaseSource(product.latestCost!)),
     }
   }
@@ -752,11 +873,9 @@ export function answerQuestion(question: string, currentBranch: Branch, data: To
   const productish = ['harga', 'stok', 'beli', 'supplier', 'murah', 'kapan', 'isi'].some((word) => q.includes(word))
   return {
     branch,
-    lines: [
-      productish && tokens.length
-        ? `"${tokens.join(' ')}" belum ketemu. Coba tulis seperti di nota.`
-        : 'Maaf, belum paham. Coba tekan salah satu contoh di atas.',
-    ],
+    lines: productish && tokens.length
+      ? [`"${tokens.join(' ')}" belum ketemu.`, 'Coba tulis nama barang seperti di nota.']
+      : ['Maaf, belum paham.', 'Coba tekan salah satu contoh di atas.'],
     sources: [],
   }
 }
